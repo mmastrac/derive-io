@@ -237,6 +237,7 @@ name = "tokio"
 version = "0.1.0"
 dependencies = [
  "derive-io",
+ "derive-io-macros",
  "tokio 1.45.1",
 ]
 
