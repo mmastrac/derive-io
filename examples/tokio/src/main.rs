@@ -21,6 +21,12 @@ pub enum TokioStreams {
         #[write]
         UnixStream,
     ),
+    #[cfg(windows)]
+    Windows(
+        #[read]
+        #[write]
+        tokio::net::windows::NamedPipeClient,
+    ),
     Split {
         #[read]
         read: tokio::net::tcp::OwnedReadHalf,
