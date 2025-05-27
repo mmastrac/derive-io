@@ -1,0 +1,13 @@
+[package]
+name = "derive-io-macros"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+proc-macro2 = "1"
+
+[lib]
+proc-macro = true

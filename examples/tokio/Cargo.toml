@@ -1,0 +1,13 @@
+[package]
+name = "tokio"
+version.workspace = true
+edition.workspace = true
+publish = false
+default-run = "tokio"
+
+[dependencies]
+tokio = { version = "1.45", features = ["full"] }
+derive-io = { workspace = true, features = ["tokio"] }
+
+[[bin]]
+name = "tokio"
