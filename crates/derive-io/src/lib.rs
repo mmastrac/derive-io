@@ -2,6 +2,7 @@
 
 pub use derive_io_macros::*;
 
+#[doc(hidden)]
 pub mod __support {
     #[doc(hidden)]
     pub use crate::__derive_io_async_read_parse as derive_io_async_read_parse;
@@ -12,16 +13,16 @@ pub mod __support {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __derive_io_async_read_parse {
-    ( $($input:tt)* ) => {
-        $crate::__derive_impl!(__generate__ AsyncRead $($input)*);
+    ( ($($input:tt)*) ($($generics:tt)*) ($($where:tt)*) ) => {
+        $crate::__derive_impl!(__generate__ AsyncRead ($($input)*) ($($generics)*) ($($where)*));
     };
 }
 
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __derive_io_async_write_parse {
-    ( $($input:tt)* ) => {
-        $crate::__derive_impl!(__generate__ AsyncWrite $($input)*);
+    ( ($($input:tt)*) ($($generics:tt)*) ($($where:tt)*) ) => {
+        $crate::__derive_impl!(__generate__ AsyncWrite ($($input)*) ($($generics)*) ($($where)*));
     };
 }
 
@@ -89,27 +90,27 @@ macro_rules! __derive_impl {
 
     // tokio::io::AsyncRead::poll_read
     ( __generate_poll_read__ ($self:ident, $cx:ident, $buf:ident) $name:expr ) => {
-        ::std::pin::Pin::new(&mut $name).poll_read($cx, $buf)
+        unsafe { ::std::pin::Pin::new_unchecked($name) }.poll_read($cx, $buf)
     };
 
     // tokio::io::AsyncWrite::poll_write
     ( __generate_poll_write__ ($self:ident, $cx:ident, $buf:ident) $name:expr ) => {
-        ::std::pin::Pin::new(&mut $name).poll_write($cx, $buf)
+        unsafe { ::std::pin::Pin::new_unchecked($name) }.poll_write($cx, $buf)
     };
 
     // tokio::io::AsyncWrite::poll_flush
     ( __generate_poll_flush__ ($self:ident, $cx:ident) $name:expr ) => {
-        ::std::pin::Pin::new(&mut $name).poll_flush($cx)
+        unsafe { ::std::pin::Pin::new_unchecked($name) }.poll_flush($cx)
     };
 
     // tokio::io::AsyncWrite::poll_shutdown
     ( __generate_poll_shutdown__ ($self:ident, $cx:ident) $name:expr ) => {
-        ::std::pin::Pin::new(&mut $name).poll_shutdown($cx)
+        unsafe { ::std::pin::Pin::new_unchecked($name) }.poll_shutdown($cx)
     };
 
     // tokio::io::AsyncWrite::poll_write_vectored
     ( __generate_poll_write_vectored__ ($self:ident, $cx:ident, $bufs:ident) $name:expr ) => {
-        ::std::pin::Pin::new(&mut $name).poll_write_vectored($cx, $bufs)
+        unsafe { ::std::pin::Pin::new_unchecked($name) }.poll_write_vectored($cx, $bufs)
     };
 
     // tokio::io::AsyncWrite::is_write_vectored
@@ -117,8 +118,8 @@ macro_rules! __derive_impl {
         ($name).is_write_vectored()
     };
 
-    ( __generate__ AsyncRead $(#[$attr:meta])* $vis:vis enum $name:ident { $( $(#[$eattr:meta])* $field:ident $( ($($tuple:tt)*) )? $( {$($struct:tt)*} )? ),* $(,)?} ) => {
-        impl ::tokio::io::AsyncRead for $name {
+    ( __generate__ AsyncRead ($(#[$attr:meta])* $vis:vis enum $name:ident { $( $(#[$eattr:meta])* $field:ident $( ($($tuple:tt)*) )? $( {$($struct:tt)*} )? ),* $(,)?}) $generics:tt $where:tt ) => {
+        $crate::__derive_impl!(__impl__ ::tokio::io::AsyncRead : $name $generics $where {
             fn poll_read(
                 mut self: ::std::pin::Pin<&mut Self>,
                 cx: &mut ::std::task::Context<'_>,
@@ -139,11 +140,11 @@ macro_rules! __derive_impl {
                     )*
                 }
             }
-        }
+        });
     };
 
-    ( __generate__ AsyncRead $(#[$attr:meta])* $vis:vis struct $name:ident { $($fields:tt)* } ) => {
-        impl ::tokio::io::AsyncRead for $name {
+    ( __generate__ AsyncRead ($(#[$attr:meta])* $vis:vis struct $name:ident { $($fields:tt)* }) $generics:tt $where:tt ) => {
+        $crate::__derive_impl!(__impl__ ::tokio::io::AsyncRead : $name $generics $where {
             fn poll_read(
                 self: ::std::pin::Pin<&mut Self>,
                 cx: &mut ::std::task::Context<'_>,
@@ -152,11 +153,11 @@ macro_rules! __derive_impl {
                 let mut this = unsafe { self.get_unchecked_mut() };
                 $crate::__derive_impl!(__find_struct__ #[read] [Self] [$($fields)*] -> __generate_poll_read__(this, cx, buf))
             }
-        }
+        });
     };
 
-    ( __generate__ AsyncRead $(#[$attr:meta])* $vis:vis struct $name:ident( $($fields:tt)* ); ) => {
-        impl ::tokio::io::AsyncRead for $name {
+    ( __generate__ AsyncRead ($(#[$attr:meta])* $vis:vis struct $name:ident ( $($fields:tt)* );) $generics:tt $where:tt ) => {
+        $crate::__derive_impl!(__impl__ ::tokio::io::AsyncRead : $name $generics $where {
             fn poll_read(
                 mut self: ::std::pin::Pin<&mut Self>,
                 cx: &mut ::std::task::Context<'_>,
@@ -165,11 +166,11 @@ macro_rules! __derive_impl {
                 let mut this = unsafe { self.get_unchecked_mut() };
                 $crate::__derive_impl!(__find_tuple__ #[read] [Self] () [$($fields)*] -> __generate_poll_read__(this, cx, buf))
             }
-        }
+        });
     };
 
-    ( __generate__ AsyncWrite $(#[$attr:meta])* $vis:vis enum $name:ident { $( $(#[$eattr:meta])* $field:ident $( ($($tuple:tt)*) )? $( {$($struct:tt)*} )? ),* $(,)?} ) => {
-        impl ::tokio::io::AsyncWrite for $name {
+    ( __generate__ AsyncWrite ($(#[$attr:meta])* $vis:vis enum $name:ident { $( $(#[$eattr:meta])* $field:ident $( ($($tuple:tt)*) )? $( {$($struct:tt)*} )? ),* $(,)?}) $generics:tt $where:tt ) => {
+        $crate::__derive_impl!(__impl__ ::tokio::io::AsyncWrite : $name $generics $where {
             fn poll_write(
                 self: ::std::pin::Pin<&mut Self>,
                 cx: &mut ::std::task::Context<'_>,
@@ -267,11 +268,11 @@ macro_rules! __derive_impl {
                     )*
                 }
             }
-        }
+        });
     };
 
-    ( __generate__ AsyncWrite $(#[$attr:meta])* $vis:vis struct $name:ident { $($fields:tt)* } ) => {
-        impl ::tokio::io::AsyncWrite for $name {
+    ( __generate__ AsyncWrite ($(#[$attr:meta])* $vis:vis struct $name:ident { $($fields:tt)* }) $generics:tt $where:tt ) => {
+        $crate::__derive_impl!(__impl__ ::tokio::io::AsyncWrite : $name $generics $where {
             fn poll_write(
                 self: ::std::pin::Pin<&mut Self>,
                 cx: &mut ::std::task::Context<'_>,
@@ -309,11 +310,11 @@ macro_rules! __derive_impl {
                 let mut this = unsafe { self.get_unchecked_mut() };
                 $crate::__derive_impl!(__find_struct__ #[write] [Self] [$($fields)*] -> __generate_poll_write_vectored__(this, cx, bufs))
             }
-        }
+        });
     };
 
-    ( __generate__ AsyncWrite $(#[$attr:meta])* $vis:vis struct $name:ident( $($fields:tt)* ); ) => {
-        impl ::tokio::io::AsyncWrite for $name {
+    ( __generate__ AsyncWrite ($(#[$attr:meta])* $vis:vis struct $name:ident ( $($fields:tt)* );) $generics:tt $where:tt ) => {
+        $crate::__derive_impl!(__impl__ ::tokio::io::AsyncWrite : $name $generics $where {
             fn poll_write(
                 self: ::std::pin::Pin<&mut Self>,
                 cx: &mut ::std::task::Context<'_>,
@@ -351,7 +352,18 @@ macro_rules! __derive_impl {
                 let mut this = unsafe { self.get_unchecked_mut() };
                 $crate::__derive_impl!(__find_tuple__ #[write] [Self] () [$($fields)*] -> __generate_poll_write_vectored__(this, cx, bufs))
             }
-        }
+        });
+    };
+
+    ( __impl__ $trait:path : $name:ident () () $block:tt ) => {
+        impl $trait for $name $block
+    };
+
+    ( __impl__ $trait:path : $name:ident ($($generic:tt),+) ($($where:tt)*) $block:tt ) => {
+        const _: &str = stringify!($trait for $name);
+        const _: &str = stringify!(generics: $($generic),+);
+        const _: &str = stringify!(where: $($where)*);
+        impl <$($generic),+> $trait for $name <$($generic),+> where $($where)* $block
     };
 
     ( __generate__ fn $($input:tt)* ) => {

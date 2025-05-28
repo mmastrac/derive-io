@@ -36,6 +36,24 @@ pub enum TokioStreams {
 }
 
 #[derive(AsyncRead, AsyncWrite)]
+pub enum EnumGeneric<T, S>
+where
+    S: tokio::io::AsyncRead + tokio::io::AsyncWrite,
+    T: tokio::io::AsyncRead + tokio::io::AsyncWrite,
+{
+    T(
+        #[read]
+        #[write]
+        T,
+    ),
+    S(
+        #[read]
+        #[write]
+        S,
+    ),
+}
+
+#[derive(AsyncRead, AsyncWrite)]
 pub struct TupleStruct(
     u8,
     u8,
@@ -77,6 +95,39 @@ pub struct ReadWriteStruct {
 
 async fn make_tcp_stream(address: SocketAddr) -> TcpStream {
     TcpStream::connect(address).await.unwrap()
+}
+
+#[derive(AsyncRead, AsyncWrite)]
+pub struct Generic<S: tokio::io::AsyncRead + tokio::io::AsyncWrite> {
+    #[read]
+    #[write]
+    stream: S,
+}
+
+#[derive(AsyncRead, AsyncWrite)]
+pub struct Generic2<S>
+where
+    S: tokio::io::AsyncRead + tokio::io::AsyncWrite,
+{
+    #[read]
+    #[write]
+    stream: S,
+}
+
+#[derive(AsyncRead, AsyncWrite)]
+pub struct GenericUnrelated<T, S: tokio::io::AsyncRead + tokio::io::AsyncWrite> {
+    #[read]
+    #[write]
+    stream: S,
+    t: T,
+}
+
+#[derive(AsyncRead, AsyncWrite)]
+pub struct GenericUnrelated2<T> {
+    #[read]
+    #[write]
+    stream: TcpStream,
+    t: T,
 }
 
 #[tokio::main]
