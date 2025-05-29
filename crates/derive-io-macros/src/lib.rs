@@ -1,20 +1,27 @@
+//! Support macros for `derive-io`. This is not intended to be used directly and
+//! has no stable API.
+
 use proc_macro::*;
 
+/// `#[derive(Read)]`
 #[proc_macro_derive(Read, attributes(read))]
 pub fn derive_io_read(input: TokenStream) -> TokenStream {
     generate("derive_io", "derive_io_read", input)
 }
 
+/// `#[derive(Write)]`
 #[proc_macro_derive(Write, attributes(write))]
 pub fn derive_io_write(input: TokenStream) -> TokenStream {
     generate("derive_io", "derive_io_write", input)
 }
 
+/// `#[derive(AsyncRead)]`
 #[proc_macro_derive(AsyncRead, attributes(read))]
 pub fn derive_io_async_read(input: TokenStream) -> TokenStream {
     generate("derive_io", "derive_io_async_read", input)
 }
 
+/// `#[derive(AsyncWrite)]`
 #[proc_macro_derive(AsyncWrite, attributes(write))]
 pub fn derive_io_async_write(input: TokenStream) -> TokenStream {
     generate("derive_io", "derive_io_async_write", input)
@@ -35,7 +42,7 @@ fn generate(macro_crate: &str, macro_type: &str, item: TokenStream) -> TokenStre
 
     // Parse out generics and where clause into something easier for macros to digest:
     //  - Generic bounds are moved to where clause, leaving just types/lifetimes
-    //  - All generics exist in where clause
+    //  - If a generic has no bounds, we don't add it to the where clause
     let mut in_generics = false;
     let mut generics_ident = false;
     let mut generics_accum = TokenStream::new();
@@ -133,4 +140,245 @@ fn generate(macro_crate: &str, macro_type: &str, item: TokenStream) -> TokenStre
     ]);
 
     invoke
+}
+
+fn expect_any(named: &str, iterator: &mut impl Iterator<Item = TokenTree>) -> TokenTree {
+    let next = iterator.next();
+    let Some(token) = next else {
+        panic!("Expected {} token, got end of stream", named);
+    };
+    token
+}
+
+fn expect_group(named: &str, iterator: &mut impl Iterator<Item = TokenTree>) -> Group {
+    let next = iterator.next();
+    let Some(TokenTree::Group(group)) = next else {
+        panic!("Expected {} group, got {:?}", named, next);
+    };
+    group
+}
+
+fn expect_ident(named: &str, iterator: &mut impl Iterator<Item = TokenTree>) -> Ident {
+    let next = iterator.next();
+    let Some(TokenTree::Ident(ident)) = next else {
+        panic!("Expected {} ident, got {:?}", named, next);
+    };
+    ident
+}
+
+fn expect_literal(named: &str, iterator: &mut impl Iterator<Item = TokenTree>) -> Literal {
+    let next = iterator.next();
+    if let Some(TokenTree::Group(ref group)) = next {
+        if group.delimiter() == Delimiter::None {
+            let mut iter = group.stream().into_iter();
+            return expect_literal(named, &mut iter);
+        }
+    }
+    let Some(TokenTree::Literal(literal)) = next else {
+        panic!("Expected {} literal, got {:?}", named, next);
+    };
+    literal
+}
+
+fn expect_punct(named: char, iterator: &mut impl Iterator<Item = TokenTree>) -> Punct {
+    let next = iterator.next();
+    let Some(TokenTree::Punct(punct)) = next else {
+        panic!("Expected {} punct, got {:?}", named, next);
+    };
+    if punct.as_char() != named {
+        panic!("Expected {} punct, got {:?}", named, punct);
+    }
+    punct
+}
+
+/// Unwrap a grouped meta element to its final group.
+fn expect_is_meta(named: &str, mut attr: TokenTree) -> Group {
+    let outer = attr.clone();
+    while let TokenTree::Group(group) = attr {
+        let mut iter = group.clone().stream().into_iter();
+        let first = iter
+            .next()
+            .expect("Expected attr group to have one element");
+        if let TokenTree::Ident(_) = first {
+            return Group::new(Delimiter::Bracket, group.stream());
+        }
+        attr = first;
+    }
+    panic!("Expected meta group {named}, got {outer}");
+}
+
+/// [
+///   (__next__) (args) expected_attr {on_error}
+///   ((attr attr) (item)) ((attr attr) (item))
+/// ] -> __next__!((args) (item))
+#[proc_macro]
+pub fn find_annotated(input: TokenStream) -> TokenStream {
+    let mut iterator = input.into_iter();
+
+    let next_macro = expect_group("__next__ macro", &mut iterator);
+    let args = expect_group("__next__ arguments", &mut iterator);
+    let expected_attr = expect_ident("expected_attr", &mut iterator);
+    let on_error = expect_group("on_error", &mut iterator);
+
+    while let Some(token) = iterator.next() {
+        let TokenTree::Group(check) = token else {
+            panic!("Expected check group");
+        };
+        let mut iter = check.stream().into_iter();
+        let attrs = expect_group("attrs", &mut iter);
+        let item = expect_any("item", &mut iter);
+        let mut index = 0;
+        for attr in attrs.stream().into_iter() {
+            let attr = expect_is_meta("attr", attr);
+            let first = expect_ident("first attr", &mut attr.clone().stream().into_iter());
+            if first.to_string() == expected_attr.to_string() {
+                let mut next = next_macro.stream();
+                next.extend([
+                    TokenTree::Punct(Punct::new('!', Spacing::Alone)),
+                    TokenTree::Group(Group::new(
+                        Delimiter::Parenthesis,
+                        TokenStream::from_iter([
+                            TokenTree::Group(args),
+                            TokenTree::Literal(Literal::usize_unsuffixed(index)),
+                            TokenTree::Group(attr),
+                            item,
+                        ]),
+                    )),
+                    TokenTree::Punct(Punct::new(';', Spacing::Alone)),
+                ]);
+                return next;
+            }
+            index += 1;
+        }
+    }
+
+    on_error.stream()
+}
+
+/// [(__next__) (args) expected_attr {on_error}
+///  ( (id) (([attr] [attr]) (item)) (([attr] [attr]) (item)) )
+///  ( (id) (([attr] [attr]) (item)) (([attr] [attr]) (item)) )
+/// ] -> __next__!((args) ((id) (item)))
+#[proc_macro]
+pub fn find_annotated_multi(input: TokenStream) -> TokenStream {
+    let mut iterator = input.into_iter();
+
+    let next_macro = expect_group("__next__ macro", &mut iterator);
+    let args = expect_group("__next__ arguments", &mut iterator);
+    let expected_attr = expect_ident("expected_attr", &mut iterator);
+    let on_error = expect_group("on_error", &mut iterator);
+    let mut output = TokenStream::new();
+
+    'outer: while let Some(token) = iterator.next() {
+        let TokenTree::Group(id) = token else {
+            panic!("Expected id group");
+        };
+        let mut iter = id.stream().into_iter();
+        let id = expect_group("id", &mut iter);
+        let mut index = 0;
+        while let Some(token) = iter.next() {
+            let TokenTree::Group(check) = token else {
+                panic!("Expected check group");
+            };
+            let mut iter = check.stream().into_iter();
+            let attrs = expect_group("attrs", &mut iter);
+            let item = expect_any("item", &mut iter);
+            for attr in attrs.stream().into_iter() {
+                let attr = expect_is_meta("attr", attr);
+                let first = expect_ident("first attr", &mut attr.clone().stream().into_iter());
+                if first.to_string() == expected_attr.to_string() {
+                    output.extend([TokenTree::Group(Group::new(
+                        Delimiter::Parenthesis,
+                        TokenStream::from_iter([
+                            TokenTree::Group(id.clone()),
+                            TokenTree::Literal(Literal::usize_unsuffixed(index)),
+                            TokenTree::Group(attr),
+                            item.clone(),
+                        ]),
+                    ))]);
+                    continue 'outer;
+                }
+            }
+            index += 1;
+        }
+        return on_error.stream();
+    }
+
+    let mut next = next_macro.stream();
+    next.extend([
+        TokenTree::Punct(Punct::new('!', Spacing::Alone)),
+        TokenTree::Group(Group::new(
+            Delimiter::Parenthesis,
+            TokenStream::from_iter([
+                TokenTree::Group(args),
+                TokenTree::Group(Group::new(Delimiter::Parenthesis, output)),
+            ]),
+        )),
+        TokenTree::Punct(Punct::new(';', Spacing::Alone)),
+    ]);
+    next
+}
+
+/// [prefix count repeated suffix] -> prefix (repeated*count suffix)
+#[proc_macro]
+pub fn repeat_in_parenthesis(input: TokenStream) -> TokenStream {
+    let mut iterator = input.into_iter();
+    let prefix = expect_group("prefix", &mut iterator);
+    let count = expect_literal("count", &mut iterator);
+    let count =
+        usize::from_str_radix(&count.to_string(), 10).expect("Expected count to be a number");
+    let repeated = expect_group("repeated", &mut iterator);
+    let suffix = expect_group("suffix", &mut iterator);
+    let mut repeat = TokenStream::new();
+    for _ in 0..count {
+        repeat.extend(repeated.clone().stream());
+    }
+    repeat.extend(suffix.stream());
+    let mut output = TokenStream::new();
+    output.extend(prefix.stream());
+    output.extend([TokenTree::Group(Group::new(Delimiter::Parenthesis, repeat))]);
+    output
+}
+
+// needle haystack(key=value,key=value) default -> extracted OR default
+#[proc_macro]
+pub fn extract_meta(input: TokenStream) -> TokenStream {
+    let mut iterator = input.into_iter();
+    let needle = expect_ident("needle", &mut iterator);
+    let haystack = expect_group("haystack", &mut iterator);
+    let default = expect_group("default", &mut iterator);
+
+    let mut haystack = haystack.stream().into_iter();
+
+    loop {
+        let attr = haystack.next();
+        if let Some(TokenTree::Group(ref group)) = attr {
+            haystack = group.stream().into_iter();
+            continue;
+        }
+        break;
+    }
+
+    loop {
+        let key = haystack.next();
+        if let Some(TokenTree::Group(ref group)) = key {
+            haystack = group.stream().into_iter();
+            continue;
+        }
+        let Some(key) = key else {
+            break;
+        };
+        expect_punct('=', &mut haystack);
+        let value = expect_ident("value", &mut haystack);
+
+        if key.to_string() == needle.to_string() {
+            return TokenStream::from_iter([TokenTree::Ident(value)]);
+        }
+
+        if haystack.next().is_none() {
+            break;
+        }
+    }
+
+    default.stream()
 }

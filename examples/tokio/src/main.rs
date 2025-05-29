@@ -55,8 +55,8 @@ where
 
 #[derive(AsyncRead, AsyncWrite)]
 pub struct TupleStruct(
-    u8,
-    u8,
+    #[allow(unused)] u8,
+    #[allow(unused)] u8,
     #[read]
     #[write]
     TcpStream,
@@ -115,10 +115,11 @@ where
 }
 
 #[derive(AsyncRead, AsyncWrite)]
-pub struct GenericUnrelated<T, S: tokio::io::AsyncRead + tokio::io::AsyncWrite> {
+pub struct GenericUnrelated<T, S> {
     #[read]
     #[write]
     stream: S,
+    #[allow(unused)]
     t: T,
 }
 
@@ -127,7 +128,45 @@ pub struct GenericUnrelated2<T> {
     #[read]
     #[write]
     stream: TcpStream,
+    #[allow(unused)]
     t: T,
+}
+
+#[derive(AsyncRead, AsyncWrite)]
+pub struct Override {
+    #[read(poll_read=override_poll_read)]
+    #[write(poll_write=override_poll_write, poll_flush=override_poll_flush, poll_shutdown=override_poll_shutdown)]
+    stream: TcpStream,
+}
+
+fn override_poll_read<S: tokio::io::AsyncRead>(
+    stm: std::pin::Pin<&mut S>,
+    cx: &mut std::task::Context<'_>,
+    buf: &mut tokio::io::ReadBuf<'_>,
+) -> std::task::Poll<std::io::Result<()>> {
+    std::task::Poll::Pending
+}
+
+fn override_poll_write<S: tokio::io::AsyncWrite>(
+    stm: std::pin::Pin<&mut S>,
+    cx: &mut std::task::Context<'_>,
+    buf: &[u8],
+) -> std::task::Poll<std::io::Result<usize>> {
+    std::task::Poll::Pending
+}
+
+fn override_poll_flush<S: tokio::io::AsyncWrite>(
+    stm: std::pin::Pin<&mut S>,
+    cx: &mut std::task::Context<'_>,
+) -> std::task::Poll<std::io::Result<()>> {
+    std::task::Poll::Pending
+}
+
+fn override_poll_shutdown<S: tokio::io::AsyncWrite>(
+    stm: std::pin::Pin<&mut S>,
+    cx: &mut std::task::Context<'_>,
+) -> std::task::Poll<std::io::Result<()>> {
+    std::task::Poll::Pending
 }
 
 #[tokio::main]
@@ -136,7 +175,7 @@ async fn main() {
     let address = listener.local_addr().unwrap();
     eprintln!("address: {}", address);
 
-    let handle = tokio::spawn(async move {
+    let _handle = tokio::spawn(async move {
         loop {
             let (mut socket, _) = listener.accept().await.unwrap();
             socket.write_all(b"Hello, world!").await.unwrap();

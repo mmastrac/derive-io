@@ -1,20 +1,21 @@
 #![doc = include_str!("../README.md")]
 
-pub use derive_io_macros::*;
+pub use derive_io_macros::{AsyncRead, AsyncWrite, Read, Write};
 
 #[doc(hidden)]
 pub mod __support {
-    #[doc(hidden)]
     pub use crate::__derive_io_async_read_parse as derive_io_async_read_parse;
-    #[doc(hidden)]
     pub use crate::__derive_io_async_write_parse as derive_io_async_write_parse;
+    pub use derive_io_macros::{
+        extract_meta, find_annotated, find_annotated_multi, repeat_in_parenthesis,
+    };
 }
 
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __derive_io_async_read_parse {
     ( ($($input:tt)*) ($($generics:tt)*) ($($where:tt)*) ) => {
-        $crate::__derive_impl!(__generate__ AsyncRead ($($input)*) ($($generics)*) ($($where)*));
+        $crate::__derive_impl!(__parse_type__ AsyncRead ($($generics)*) ($($where)*) read $($input)*);
     };
 }
 
@@ -22,351 +23,259 @@ macro_rules! __derive_io_async_read_parse {
 #[macro_export]
 macro_rules! __derive_io_async_write_parse {
     ( ($($input:tt)*) ($($generics:tt)*) ($($where:tt)*) ) => {
-        $crate::__derive_impl!(__generate__ AsyncWrite ($($input)*) ($($generics)*) ($($where)*));
+        $crate::__derive_impl!(__parse_type__ AsyncWrite ($($generics)*) ($($where)*) write $($input)*);
     };
 }
 
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __derive_impl {
-    // Found, ignore additional attributes
-    ( __find_struct__ #[read] [$self_type:path] [#[read] $(#[$_attr:meta])* $name:ident: $type:ty $(, $($fields:tt)*)?] -> $__next__:ident($self:ident $(, $arg:ident)*) ) => {
-        $crate::__derive_impl!($__next__( $self $(, $arg)*) { let $self_type { $name, .. } = $self else { unreachable!() }; $name });
+    // Parse enum types, identifying annotated fields. Next macro: __process_derive__
+    ( __parse_type__ $generator:ident $generics:tt $where:tt $attr:ident
+        $(#[$eattr:meta])* $vis:vis enum $name:ident {
+            $( $(#[$iattr:meta])* $field:ident
+                $( ( $($(#[$tuple_attr:meta])* $tuple_type:ty),* $(,)?) )?
+                $( { $($(#[$struct_attr:meta])* $struct_name:ident : $struct_type:ty),* $(,)? } )?
+            ),*
+            $(,)?
+        }
+    ) => {
+        $crate::__support::find_annotated_multi!(
+            ($crate::__derive_impl)
+            (__process_derive__ $generator $attr $generics $where enum $name)
+            $attr
+            {
+                compile_error!(concat!("No #[", stringify!($attr), "] field found"));
+            }
+            $(
+                (
+                    (Self::$field)
+                    $(
+                        $(
+                            (($([$tuple_attr])*)
+                            ($tuple_type))
+                        )*
+                    )?
+                    $(
+                        $(
+                            (($([$struct_attr])*)
+                            ($struct_type:($struct_name)))
+                        )*
+                    )?
+                )
+            )*
+        );
     };
 
-    // Found, ignore additional attributes
-    ( __find_struct__ #[write] [$self_type:path] [#[write] $(#[$_attr:meta])* $name:ident: $type:ty $(, $($fields:tt)*)?] -> $__next__:ident($self:ident $(, $arg:ident)*) ) => {
-        $crate::__derive_impl!($__next__( $self $(, $arg)*) { let $self_type { $name, .. } = $self else { unreachable!() }; $name });
+    // Parse named structs, identifying annotated fields. Next macro: __process_derive__
+    ( __parse_type__ $generator:ident $generics:tt $where:tt $attr:ident
+        $(#[$sattr:meta])* $vis:vis struct $name:ident { $( $(#[$fattr:meta])* $fname:ident : $ftype:ty ),* $(,)? }
+    ) => {
+        $crate::__support::find_annotated_multi!(
+            ($crate::__derive_impl)
+            (__process_derive__ $generator $attr $generics $where struct $name)
+            $attr
+            {
+                compile_error!(concat!("No #[", stringify!($attr), "] field found"));
+            }
+            ((Self) $( (($([$fattr])*) ($ftype: ($fname))) )*)
+        );
     };
 
-    // Unknown attribute, skip it
-    ( __find_struct__ #[$which:ident] [$self_type:path] [#[$_attr:meta] $($fields:tt)*] -> $($__next__:tt)* ) => {
-        $crate::__derive_impl!(__find_struct__ #[$which] [$self_type] [$($fields)*] -> $($__next__)*);
+    // Parse tuple structs, identifying annotated fields. Next macro: __process_derive__
+    ( __parse_type__ $generator:ident $generics:tt $where:tt $attr:ident
+        $(#[$sattr:meta])* $vis:vis struct $name:ident ( $( $(#[$fattr:meta])* $ftype:ty ),* $(,)? );
+    ) => {
+        $crate::__support::find_annotated_multi!(
+            ($crate::__derive_impl)
+            (__process_derive__ $generator $attr $generics $where struct $name)
+            $attr
+            {
+                compile_error!(concat!("No #[", stringify!($attr), "] field found"));
+            }
+            ((Self) $( (($([$fattr])*) ($ftype)) )*)
+        );
     };
 
-    // Unknown field, skip it
-    ( __find_struct__ #[$which:ident] [$self_type:path] [$name:ident: $type:ty $(, $($fields:tt)*)?] -> $($__next__:tt)* ) => {
-        $crate::__derive_impl!(__find_struct__ #[$which] [$self_type] [$($($fields)*)?] -> $($__next__)*);
+    // Process the identified annotated fields. Next macro: __generate__ $generator
+    // Note that the input here is:
+    //   (case) index [attr] (type : name)
+    ( (__process_derive__ $generator:ident $attr:ident $generics:tt $where:tt $type:ident $name:ident) (
+        $( ( ($case:path) $index:literal $fattr:tt ($ftype:ty $( : ($fname:ident) )?) ) )*
+    )) => {
+        const _: &str = stringify!( $type $name {
+            $(
+                # $fattr ($case) => $crate::__derive_impl!(__expand__ $attr ($case) $index $ftype $(: $fname)?)
+            )*
+        }  );
+        $crate::__derive_impl!(__generate__ $generator $attr $generics $where ($($ftype)*)
+            $type $name {
+                $(
+                    # $fattr ($case) => $crate::__derive_impl!(__expand__ $attr ($case) $index $ftype $(: $fname)?)
+                )*
+            }
+        );
     };
 
-    ( __find_struct__ #[read] [$self_type:path] [] -> $($__next__:tt)* ) => {
-        compile_error!("No #[read] field found");
-    };
-    ( __find_struct__ #[write] [$self_type:path] [] -> $($__next__:tt)* ) => {
-        compile_error!("No #[write] field found");
-    };
-
-
-    // Found, ignore additional attributes
-    ( __find_tuple__ #[read] [$self_type:path] $index:tt [#[read] $(#[$_attr:meta])* $type:ty $(, $($fields:tt)*)?] -> $__next__:ident($self:ident $(, $arg:ident)*) ) => {
-        $crate::__derive_impl!($__next__( $self $(, $arg)*) $crate::__derive_impl!( __extract_index__ $self [$self_type] $index ));
-    };
-
-    // Found, ignore additional attributes
-    ( __find_tuple__ #[write] [$self_type:path] $index:tt [#[write] $(#[$_attr:meta])* $type:ty $(, $($fields:tt)*)?] -> $__next__:ident($self:ident $(, $arg:ident)*) ) => {
-        $crate::__derive_impl!($__next__( $self $(, $arg)*) $crate::__derive_impl!( __extract_index__ $self [$self_type] $index ));
-    };
-
-    // Unknown attribute, skip it
-    ( __find_tuple__ #[$which:ident] [$self_type:path] $index:tt [#[$_attr:meta] $($fields:tt)*] -> $($__next__:tt)* ) => {
-        $crate::__derive_impl!(__find_tuple__ #[$which] [$self_type] $index [$($fields)*] -> $($__next__)*);
-    };
-
-    // Unknown field, skip it
-    ( __find_tuple__ #[$which:ident] [$self_type:path] ($($index:tt),*) [$type:ty $(, $($fields:tt)*)?] -> $($__next__:tt)* ) => {
-        $crate::__derive_impl!(__find_tuple__ #[$which] [$self_type] (_ $(, $index)*) [$($($fields)*)?] -> $($__next__)*);
-    };
-
-    ( __find_tuple__ #[read] [$self_type:path] $index:tt [] -> $($__next__:tt)* ) => {
-        compile_error!("No #[read] field found");
-    };
-    ( __find_tuple__ #[write] [$self_type:path] $index:tt [] -> $($__next__:tt)* ) => {
-        compile_error!("No #[write] field found");
-    };
-
-    ( __extract_index__ $self:ident [$self_type:path] ($($index:tt),*) ) => {
-        { let $self_type ($($index,)* x, ..) = $self else { unreachable!() }; x }
-    };
-
-    // tokio::io::AsyncRead::poll_read
-    ( __generate_poll_read__ ($self:ident, $cx:ident, $buf:ident) $name:expr ) => {
-        unsafe { ::std::pin::Pin::new_unchecked($name) }.poll_read($cx, $buf)
-    };
-
-    // tokio::io::AsyncWrite::poll_write
-    ( __generate_poll_write__ ($self:ident, $cx:ident, $buf:ident) $name:expr ) => {
-        unsafe { ::std::pin::Pin::new_unchecked($name) }.poll_write($cx, $buf)
-    };
-
-    // tokio::io::AsyncWrite::poll_flush
-    ( __generate_poll_flush__ ($self:ident, $cx:ident) $name:expr ) => {
-        unsafe { ::std::pin::Pin::new_unchecked($name) }.poll_flush($cx)
-    };
-
-    // tokio::io::AsyncWrite::poll_shutdown
-    ( __generate_poll_shutdown__ ($self:ident, $cx:ident) $name:expr ) => {
-        unsafe { ::std::pin::Pin::new_unchecked($name) }.poll_shutdown($cx)
-    };
-
-    // tokio::io::AsyncWrite::poll_write_vectored
-    ( __generate_poll_write_vectored__ ($self:ident, $cx:ident, $bufs:ident) $name:expr ) => {
-        unsafe { ::std::pin::Pin::new_unchecked($name) }.poll_write_vectored($cx, $bufs)
-    };
-
-    // tokio::io::AsyncWrite::is_write_vectored
-    ( __generate_is_write_vectored__ ($self:ident) $name:expr ) => {
-        ($name).is_write_vectored()
-    };
-
-    ( __generate__ AsyncRead ($(#[$attr:meta])* $vis:vis enum $name:ident { $( $(#[$eattr:meta])* $field:ident $( ($($tuple:tt)*) )? $( {$($struct:tt)*} )? ),* $(,)?}) $generics:tt $where:tt ) => {
-        $crate::__derive_impl!(__impl__ ::tokio::io::AsyncRead : $name $generics $where {
+    // Generate the impl block for AsyncRead. Next macro: __impl__
+    ( __generate__ AsyncRead $this:ident $generics:tt $where:tt $ftypes:tt $type:ident $name:ident $struct:tt) => {
+        $crate::__derive_impl!(__impl__ ::tokio::io::AsyncRead : $name $generics $where $ftypes #[read] {
+            #[inline]
             fn poll_read(
                 mut self: ::std::pin::Pin<&mut Self>,
                 cx: &mut ::std::task::Context<'_>,
                 buf: &mut ::tokio::io::ReadBuf<'_>,
             ) -> ::std::task::Poll<::std::io::Result<()>> {
-                let mut this = unsafe { self.get_unchecked_mut() };
-                match this {
-                    $(
-                        $name::$field {..} => {
-                            $(
-                                $crate::__derive_impl!(__find_struct__ #[read] [Self::$field] [$($struct)*] -> __generate_poll_read__(this, cx, buf))
-                            )?
-
-                            $(
-                                $crate::__derive_impl!(__find_tuple__ #[read] [Self::$field] () [$($tuple)*] -> __generate_poll_read__(this, cx, buf))
-                            )?
-                        }
-                    )*
-                }
+                let $this = self;
+                $crate::__derive_impl!(__foreach_pin__ $this (::tokio::io::AsyncRead poll_read($this, cx, buf)) $struct)
             }
         });
     };
 
-    ( __generate__ AsyncRead ($(#[$attr:meta])* $vis:vis struct $name:ident { $($fields:tt)* }) $generics:tt $where:tt ) => {
-        $crate::__derive_impl!(__impl__ ::tokio::io::AsyncRead : $name $generics $where {
-            fn poll_read(
-                self: ::std::pin::Pin<&mut Self>,
-                cx: &mut ::std::task::Context<'_>,
-                buf: &mut ::tokio::io::ReadBuf<'_>,
-            ) -> ::std::task::Poll<::std::io::Result<()>> {
-                let mut this = unsafe { self.get_unchecked_mut() };
-                $crate::__derive_impl!(__find_struct__ #[read] [Self] [$($fields)*] -> __generate_poll_read__(this, cx, buf))
-            }
-        });
-    };
-
-    ( __generate__ AsyncRead ($(#[$attr:meta])* $vis:vis struct $name:ident ( $($fields:tt)* );) $generics:tt $where:tt ) => {
-        $crate::__derive_impl!(__impl__ ::tokio::io::AsyncRead : $name $generics $where {
-            fn poll_read(
-                mut self: ::std::pin::Pin<&mut Self>,
-                cx: &mut ::std::task::Context<'_>,
-                buf: &mut ::tokio::io::ReadBuf<'_>,
-            ) -> ::std::task::Poll<::std::io::Result<()>> {
-                let mut this = unsafe { self.get_unchecked_mut() };
-                $crate::__derive_impl!(__find_tuple__ #[read] [Self] () [$($fields)*] -> __generate_poll_read__(this, cx, buf))
-            }
-        });
-    };
-
-    ( __generate__ AsyncWrite ($(#[$attr:meta])* $vis:vis enum $name:ident { $( $(#[$eattr:meta])* $field:ident $( ($($tuple:tt)*) )? $( {$($struct:tt)*} )? ),* $(,)?}) $generics:tt $where:tt ) => {
-        $crate::__derive_impl!(__impl__ ::tokio::io::AsyncWrite : $name $generics $where {
+    // Generate the impl block for AsyncWrite. Next macro: __impl__
+    ( __generate__ AsyncWrite $this:ident $generics:tt $where:tt $ftypes:tt $type:ident $name:ident $struct:tt) => {
+        $crate::__derive_impl!(__impl__ ::tokio::io::AsyncWrite : $name $generics $where $ftypes #[write] {
+            #[inline]
             fn poll_write(
                 self: ::std::pin::Pin<&mut Self>,
                 cx: &mut ::std::task::Context<'_>,
                 buf: &[u8],
             ) -> ::std::task::Poll<::std::io::Result<usize>> {
-                let mut this = unsafe { self.get_unchecked_mut() };
-                match this {
-                    $(
-                        $name::$field {..} => {
-                            $(
-                                $crate::__derive_impl!(__find_struct__ #[write] [Self::$field] [$($struct)*] -> __generate_poll_write__(this, cx, buf))
-                            )?
-
-                            $(
-                                $crate::__derive_impl!(__find_tuple__ #[read] [Self::$field] () [$($tuple)*] -> __generate_poll_write__(this, cx, buf))
-                            )?
-                        }
-                    )*
-                }
+                let $this = self;
+                $crate::__derive_impl!(__foreach_pin__ $this (::tokio::io::AsyncWrite poll_write($this, cx, buf)) $struct)
             }
 
+            #[inline]
             fn poll_flush(
                 self: ::std::pin::Pin<&mut Self>,
                 cx: &mut ::std::task::Context<'_>,
             ) -> ::std::task::Poll<::std::io::Result<()>> {
-                let mut this = unsafe { self.get_unchecked_mut() };
-                match this {
-                    $(
-                        $name::$field {..} => {
-                            $(
-                                $crate::__derive_impl!(__find_struct__ #[write] [Self::$field] [$($struct)*] -> __generate_poll_flush__(this, cx))
-                            )?
-
-                            $(
-                                $crate::__derive_impl!(__find_tuple__ #[write] [Self::$field] () [$($tuple)*] -> __generate_poll_flush__(this, cx))
-                            )?
-                        }
-                    )*
-                }
+                let $this = self;
+                $crate::__derive_impl!(__foreach_pin__ $this (::tokio::io::AsyncWrite poll_flush($this, cx)) $struct)
             }
 
+            #[inline]
             fn poll_shutdown(
                 self: ::std::pin::Pin<&mut Self>,
                 cx: &mut ::std::task::Context<'_>,
             ) -> ::std::task::Poll<::std::io::Result<()>> {
-                let mut this = unsafe { self.get_unchecked_mut() };
-                match this {
-                    $(
-                        $name::$field {..} => {
-                            $(
-                                $crate::__derive_impl!(__find_struct__ #[write] [Self::$field] [$($struct)*] -> __generate_poll_shutdown__(this, cx))
-                            )?
-
-                            $(
-                                $crate::__derive_impl!(__find_tuple__ #[write] [Self::$field] () [$($tuple)*] -> __generate_poll_shutdown__(this, cx))
-                            )?
-                        }
-                    )*
-                }
+                let $this = self;
+                $crate::__derive_impl!(__foreach_pin__ $this (::tokio::io::AsyncWrite poll_shutdown($this, cx)) $struct)
             }
 
+            #[inline]
             fn is_write_vectored(&self) -> bool {
-                match self {
-                    $(
-                        $name::$field {..} => {
-                            $(
-                                $crate::__derive_impl!(__find_struct__ #[write] [Self::$field] [$($struct)*] -> __generate_is_write_vectored__(self))
-                            )?
-
-                            $(
-                                $crate::__derive_impl!(__find_tuple__ #[write] [Self::$field] () [$($tuple)*] -> __generate_is_write_vectored__(self))
-                            )?
-                        }
-                    )*
-                }
+                let $this = self;
+                $crate::__derive_impl!(__foreach__ $this (::tokio::io::AsyncWrite is_write_vectored($this)) $struct)
             }
 
+            #[inline]
             fn poll_write_vectored(
                 self: ::std::pin::Pin<&mut Self>,
                 cx: &mut ::std::task::Context<'_>,
                 bufs: &[::std::io::IoSlice<'_>],
             ) -> ::std::task::Poll<::std::io::Result<usize>> {
-                let mut this = unsafe { self.get_unchecked_mut() };
-                match this {
-                    $(
-                        $name::$field {..} => {
-                            $(
-                                $crate::__derive_impl!(__find_struct__ #[write] [Self::$field] [$($struct)*] -> __generate_poll_write_vectored__(this, cx, bufs))
-                            )?
-
-                            $(
-                                $crate::__derive_impl!(__find_tuple__ #[write] [Self::$field] () [$($tuple)*] -> __generate_poll_write_vectored__(this, cx, bufs))
-                            )?
-                        }
-                    )*
-                }
+                let $this = self;
+                $crate::__derive_impl!(__foreach_pin__ $this (::tokio::io::AsyncWrite poll_write_vectored($this, cx, bufs)) $struct)
             }
         });
     };
 
-    ( __generate__ AsyncWrite ($(#[$attr:meta])* $vis:vis struct $name:ident { $($fields:tt)* }) $generics:tt $where:tt ) => {
-        $crate::__derive_impl!(__impl__ ::tokio::io::AsyncWrite : $name $generics $where {
-            fn poll_write(
-                self: ::std::pin::Pin<&mut Self>,
-                cx: &mut ::std::task::Context<'_>,
-                buf: &[u8],
-            ) -> ::std::task::Poll<::std::io::Result<usize>> {
-                let mut this = unsafe { self.get_unchecked_mut() };
-                $crate::__derive_impl!(__find_struct__ #[write] [Self] [$($fields)*] -> __generate_poll_write__(this, cx, buf))
-            }
-
-            fn poll_flush(
-                self: ::std::pin::Pin<&mut Self>,
-                cx: &mut ::std::task::Context<'_>,
-            ) -> ::std::task::Poll<::std::io::Result<()>> {
-                let mut this = unsafe { self.get_unchecked_mut() };
-                $crate::__derive_impl!(__find_struct__ #[write] [Self] [$($fields)*] -> __generate_poll_flush__(this, cx))
-            }
-
-            fn poll_shutdown(
-                self: ::std::pin::Pin<&mut Self>,
-                cx: &mut ::std::task::Context<'_>,
-            ) -> ::std::task::Poll<::std::io::Result<()>> {
-                let mut this = unsafe { self.get_unchecked_mut() };
-                $crate::__derive_impl!(__find_struct__ #[write] [Self] [$($fields)*] -> __generate_poll_shutdown__(this, cx))
-            }
-
-            fn is_write_vectored(&self) -> bool {
-                $crate::__derive_impl!(__find_struct__ #[write] [Self] [$($fields)*] -> __generate_is_write_vectored__(self))
-            }
-
-            fn poll_write_vectored(
-                self: ::std::pin::Pin<&mut Self>,
-                cx: &mut ::std::task::Context<'_>,
-                bufs: &[::std::io::IoSlice<'_>],
-            ) -> ::std::task::Poll<::std::io::Result<usize>> {
-                let mut this = unsafe { self.get_unchecked_mut() };
-                $crate::__derive_impl!(__find_struct__ #[write] [Self] [$($fields)*] -> __generate_poll_write_vectored__(this, cx, bufs))
-            }
-        });
+    // Final macro. Generate the impl block.
+    ( __impl__ $trait:path : $name:ident ($($generic:tt),*) ($($where:tt)*) ($($ftype:path)*) #[$attr:ident] $block:tt) => {
+        impl <$($generic),*> $trait for $name <$($generic),*>
+            where
+                // Add a where clause for each stream type
+                $($ftype : $trait,)*
+                $($where)*
+        $block
     };
 
-    ( __generate__ AsyncWrite ($(#[$attr:meta])* $vis:vis struct $name:ident ( $($fields:tt)* );) $generics:tt $where:tt ) => {
-        $crate::__derive_impl!(__impl__ ::tokio::io::AsyncWrite : $name $generics $where {
-            fn poll_write(
-                self: ::std::pin::Pin<&mut Self>,
-                cx: &mut ::std::task::Context<'_>,
-                buf: &[u8],
-            ) -> ::std::task::Poll<::std::io::Result<usize>> {
-                let mut this = unsafe { self.get_unchecked_mut() };
-                $crate::__derive_impl!(__find_tuple__ #[write] [Self] () [$($fields)*] -> __generate_poll_write__(this, cx, buf))
-            }
+    // Expand a named field to an access pattern.
+    ( __expand__ $this:ident ($case:path) $index:literal $ftype:ty : $fname:tt) => {
+        {
+            let $case { $fname, .. } = $this else {
+                unreachable!()
+            };
+            $fname
+        }
+     };
 
-            fn poll_flush(
-                self: ::std::pin::Pin<&mut Self>,
-                cx: &mut ::std::task::Context<'_>,
-            ) -> ::std::task::Poll<::std::io::Result<()>> {
-                let mut this = unsafe { self.get_unchecked_mut() };
-                $crate::__derive_impl!(__find_tuple__ #[write] [Self] () [$($fields)*] -> __generate_poll_flush__(this, cx))
-            }
-
-            fn poll_shutdown(
-                self: ::std::pin::Pin<&mut Self>,
-                cx: &mut ::std::task::Context<'_>,
-            ) -> ::std::task::Poll<::std::io::Result<()>> {
-                let mut this = unsafe { self.get_unchecked_mut() };
-                $crate::__derive_impl!(__find_tuple__ #[write] [Self] () [$($fields)*] -> __generate_poll_shutdown__(this, cx))
-            }
-
-            fn is_write_vectored(&self) -> bool {
-                $crate::__derive_impl!(__find_tuple__ #[write] [Self] () [$($fields)*] -> __generate_is_write_vectored__(self))
-            }
-
-            fn poll_write_vectored(
-                self: ::std::pin::Pin<&mut Self>,
-                cx: &mut ::std::task::Context<'_>,
-                bufs: &[::std::io::IoSlice<'_>],
-            ) -> ::std::task::Poll<::std::io::Result<usize>> {
-                let mut this = unsafe { self.get_unchecked_mut() };
-                $crate::__derive_impl!(__find_tuple__ #[write] [Self] () [$($fields)*] -> __generate_poll_write_vectored__(this, cx, bufs))
-            }
-        });
+    // Expand a tuple field to an access pattern.
+    ( __expand__ $this:ident ($case:path) $index:literal $ftype:ty) => {
+        {
+            let $crate::__support::repeat_in_parenthesis!(($case) $index (_,) ($this, .. )) = $this else {
+                unreachable!()
+            };
+            $this
+        }
     };
 
-    ( __impl__ $trait:path : $name:ident () () $block:tt ) => {
-        impl $trait for $name $block
+    ( __foreach__ $this:ident $fn:tt {$(
+        # $attr:tt ($case:path) => $access:expr
+    )*}) =>{
+        {
+            match $this {
+                $( $case {..} => { let $this = $access; $crate::__derive_impl!(__foreach_inner__ # $attr $fn) } )*
+            }
+        }
     };
 
-    ( __impl__ $trait:path : $name:ident ($($generic:tt),+) ($($where:tt)*) $block:tt ) => {
-        const _: &str = stringify!($trait for $name);
-        const _: &str = stringify!(generics: $($generic),+);
-        const _: &str = stringify!(where: $($where)*);
-        impl <$($generic),+> $trait for $name <$($generic),+> where $($where)* $block
+    ( __foreach_pin__ $this:ident $fn:tt {$(
+        # $attr:tt ($case:path) => $access:expr
+    )*}) =>{
+        {
+            let mut $this = unsafe { $this.get_unchecked_mut() };
+            match $this {
+                $(
+                    $case {..} => {
+                        let $this = unsafe { ::std::pin::Pin::new_unchecked($access) };
+                        $crate::__derive_impl!(__foreach_inner__ # $attr $fn)
+                    }
+                )*
+            }
+        }
     };
 
-    ( __generate__ fn $($input:tt)* ) => {
-        const _: &str = stringify!($($input)*);
+    ( __foreach_inner__  # $attr:tt ( $( :: $fn_part:ident )+ $fn_final:ident ( $($arg:expr),* ) ) ) => {
+        // needle, haystack, default
+        {
+            $crate::__derive_impl!(__validate_macro__ # $attr);
+            $crate::__support::extract_meta!(
+                $fn_final
+                $attr
+                ($(::$fn_part)+ :: $fn_final )
+            ) ($($arg),*)
+        }
+    };
+
+    ( __validate_macro__ #[read]) => {
+    };
+
+    ( __validate_macro__ #[read(poll_read=$poll_read:ident)]) => {
+    };
+
+    ( __validate_macro__ #[write]) => {
+    };
+
+    ( __validate_macro__ #[write($($key:ident=$value:ident),*)]) => {
+        $crate::__derive_impl!(__validate_macro_deep__ #[write($($key=$value),*)]);
+    };
+
+    ( __validate_macro_deep__ #[write(
+        $( poll_write=$poll_write:ident )? $(,)?
+        $( poll_flush=$poll_flush:ident )? $(,)?
+        $( poll_shutdown=$poll_shutdown:ident )? $(,)?
+        $( is_write_vectored=$is_write_vectored:ident )? $(,)?
+        $( poll_write_vectored=$poll_write_vectored:ident )?
+    )]) => {
+    };
+
+    ( __validate_macro_deep__ # $($rest:tt)*) => {
+        compile_error!(concat!("Invalid #", stringify!($($rest)*), " attribute"));
+    };
+
+    ( __validate_macro__ # $attr:tt) => {
+        compile_error!(concat!("Invalid #", stringify!($attr), " attribute"));
     };
 }
