@@ -77,10 +77,10 @@ fn generate(macro_crate: &str, macro_type: &str, item: TokenStream) -> TokenStre
                 if in_generics {
                     if generics_ident {
                         generics.extend(std::mem::take(&mut generics_accum));
-                        generics.extend([token.clone()]);
                     } else {
-                        where_clause.extend([token]);
+                        where_clause.extend([token.clone()]);
                     }
+                    generics.extend([token]);
                     generics_ident = true;
                 } else if in_where_clause {
                     where_clause.extend([token]);

@@ -169,6 +169,24 @@ fn override_poll_shutdown<S: tokio::io::AsyncWrite>(
     std::task::Poll::Pending
 }
 
+#[derive(AsyncRead, AsyncWrite, derive_more::Debug)]
+enum ComplexStream<S: std::fmt::Debug, D: std::any::Any> {
+    #[debug("hi")]
+    A(
+        #[read]
+        #[write]
+        S,
+        Option<D>,
+    ),
+    #[debug("hi")]
+    B(
+        #[read]
+        #[write]
+        GenericUnrelated<S, D>,
+        Option<D>,
+    ),
+}
+
 #[tokio::main]
 async fn main() {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();

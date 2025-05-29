@@ -15,6 +15,7 @@ pub mod __support {
 #[macro_export]
 macro_rules! __derive_io_async_read_parse {
     ( ($($input:tt)*) ($($generics:tt)*) ($($where:tt)*) ) => {
+        const _: &str = stringify!( generics = $($generics)*, where = $($where)* );
         $crate::__derive_impl!(__parse_type__ AsyncRead ($($generics)*) ($($where)*) read $($input)*);
     };
 }
@@ -23,6 +24,7 @@ macro_rules! __derive_io_async_read_parse {
 #[macro_export]
 macro_rules! __derive_io_async_write_parse {
     ( ($($input:tt)*) ($($generics:tt)*) ($($where:tt)*) ) => {
+        const _: &str = stringify!( generics = $($generics)*, where = $($where)* );
         $crate::__derive_impl!(__parse_type__ AsyncWrite ($($generics)*) ($($where)*) write $($input)*);
     };
 }
@@ -107,7 +109,8 @@ macro_rules! __derive_impl {
             $(
                 # $fattr ($case) => $crate::__derive_impl!(__expand__ $attr ($case) $index $ftype $(: $fname)?)
             )*
-        }  );
+        });
+
         $crate::__derive_impl!(__generate__ $generator $attr $generics $where ($($ftype)*)
             $type $name {
                 $(
