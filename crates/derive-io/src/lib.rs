@@ -14,18 +14,18 @@ pub mod __support {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __derive_io_async_read_parse {
-    ( ($($input:tt)*) ($($generics:tt)*) ($($where:tt)*) ) => {
-        const _: &str = stringify!( generics = $($generics)*, where = $($where)* );
-        $crate::__derive_impl!(__parse_type__ AsyncRead ($($generics)*) ($($where)*) read $($input)*);
+    ( ($($input:tt)*) $generics:tt ($($where:tt)*) ) => {
+        const _: &str = stringify!( generics = $generics, where = $($where)* );
+        $crate::__derive_impl!(__parse_type__ AsyncRead $generics ($($where)*) read $($input)*);
     };
 }
 
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __derive_io_async_write_parse {
-    ( ($($input:tt)*) ($($generics:tt)*) ($($where:tt)*) ) => {
-        const _: &str = stringify!( generics = $($generics)*, where = $($where)* );
-        $crate::__derive_impl!(__parse_type__ AsyncWrite ($($generics)*) ($($where)*) write $($input)*);
+    ( ($($input:tt)*) $generics:tt ($($where:tt)*) ) => {
+        const _: &str = stringify!( generics = $generics, where = $($where)* );
+        $crate::__derive_impl!(__parse_type__ AsyncWrite $generics ($($where)*) write $($input)*);
     };
 }
 
@@ -185,8 +185,8 @@ macro_rules! __derive_impl {
     };
 
     // Final macro. Generate the impl block.
-    ( __impl__ $trait:path : $name:ident ($($generic:tt),*) ($($where:tt)*) ($($ftype:path)*) #[$attr:ident] $block:tt) => {
-        impl <$($generic),*> $trait for $name <$($generic),*>
+    ( __impl__ $trait:path : $name:ident ( $( ($($generic:tt)*) ),* ) ($($where:tt)*) ($($ftype:path)*) #[$attr:ident] $block:tt) => {
+        impl <$($($generic)*),*> $trait for $name <$($($generic)*),*>
             where
                 // Add a where clause for each stream type
                 $($ftype : $trait,)*

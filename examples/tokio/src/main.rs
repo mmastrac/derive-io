@@ -170,20 +170,20 @@ fn override_poll_shutdown<S: tokio::io::AsyncWrite>(
 }
 
 #[derive(AsyncRead, AsyncWrite, derive_more::Debug)]
-enum ComplexStream<S: std::fmt::Debug, D: std::any::Any> {
-    #[debug("hi")]
+enum ComplexStream<'a, S: std::fmt::Debug, D: std::any::Any = ()> {
+    #[debug("A")]
     A(
         #[read]
         #[write]
         S,
-        Option<D>,
+        Option<&'a D>,
     ),
-    #[debug("hi")]
+    #[debug("B")]
     B(
         #[read]
         #[write]
         GenericUnrelated<S, D>,
-        Option<D>,
+        Option<&'a D>,
     ),
 }
 

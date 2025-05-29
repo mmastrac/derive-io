@@ -67,7 +67,7 @@ dependencies = [
 
 [[package]]
 name = "derive-io"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "derive-io-macros",
  "tokio",
@@ -75,7 +75,7 @@ dependencies = [
 
 [[package]]
 name = "derive-io-macros"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "proc-macro2",
 ]
@@ -283,7 +283,7 @@ dependencies = [
 
 [[package]]
 name = "tokio-example"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "derive-io",
  "derive-io-macros",

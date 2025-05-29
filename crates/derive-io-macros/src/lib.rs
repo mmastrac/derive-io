@@ -47,26 +47,43 @@ fn generate(macro_crate: &str, macro_type: &str, item: TokenStream) -> TokenStre
     let mut generics_ident = false;
     let mut generics_accum = TokenStream::new();
     let mut in_where_clause = false;
+    let mut in_generic_default = false;
+    let mut in_generic_const = false;
     while let Some(token) = iterator.next() {
         match token {
-            TokenTree::Punct(p) if p.as_char() == '<' => {
+            TokenTree::Punct(p) if !in_where_clause && p.as_char() == '<' => {
                 in_generics = true;
                 generics_ident = true;
             }
-            TokenTree::Punct(ref p) if p.as_char() == '>' => {
+            TokenTree::Punct(ref p) if !in_where_clause && p.as_char() == '>' => {
                 if in_generics {
                     in_generics = false;
                     if generics_ident {
-                        generics.extend(std::mem::take(&mut generics_accum));
+                        generics.extend([TokenTree::Group(Group::new(
+                            Delimiter::Parenthesis,
+                            std::mem::take(&mut generics_accum),
+                        ))]);
+                    }
+                    if !generics_accum.is_empty() {
+                        panic!();
                     }
                 }
             }
             TokenTree::Punct(ref p) if p.as_char() == ':' => {
                 if in_generics {
-                    generics_ident = false;
-                    generics.extend(generics_accum.clone());
-                    where_clause.extend(std::mem::take(&mut generics_accum));
-                    where_clause.extend([token]);
+                    if in_generic_const {
+                        generics_accum.extend([token]);
+                    } else {
+                        if generics_ident {
+                            generics.extend([TokenTree::Group(Group::new(
+                                Delimiter::Parenthesis,
+                                generics_accum.clone(),
+                            ))]);
+                        }
+                        generics_ident = false;
+                        where_clause.extend(std::mem::take(&mut generics_accum));
+                        where_clause.extend([token]);
+                    }
                 } else if in_where_clause {
                     where_clause.extend([token]);
                 } else {
@@ -76,17 +93,42 @@ fn generate(macro_crate: &str, macro_type: &str, item: TokenStream) -> TokenStre
             TokenTree::Punct(ref p) if p.as_char() == ',' => {
                 if in_generics {
                     if generics_ident {
-                        generics.extend(std::mem::take(&mut generics_accum));
-                    } else {
+                        generics.extend([TokenTree::Group(Group::new(
+                            Delimiter::Parenthesis,
+                            std::mem::take(&mut generics_accum),
+                        ))]);
+                    } else if !in_generic_const {
                         where_clause.extend([token.clone()]);
                     }
                     generics.extend([token]);
                     generics_ident = true;
+                    in_generic_default = false;
+                    in_generic_const = false;
                 } else if in_where_clause {
                     where_clause.extend([token]);
                 } else {
                     new_item.extend([token]);
                 }
+            }
+            TokenTree::Punct(ref p) if p.as_char() == '=' => {
+                if in_generics {
+                    generics_ident = false;
+                    in_generic_default = true;
+                    if in_generic_const {
+                        generics.extend([TokenTree::Group(Group::new(
+                            Delimiter::Parenthesis,
+                            std::mem::take(&mut generics_accum),
+                        ))]);
+                    }
+                }
+            }
+            TokenTree::Ident(ref l) if l.to_string() == "const" => {
+                panic!("const not yet supported");
+                // if in_generics {
+                //     generics_ident = true;
+                //     in_generic_const = true;
+                //     generics_accum.extend([token.clone()]);
+                // }
             }
             TokenTree::Ident(l) if l.to_string() == "where" => {
                 in_where_clause = true;
@@ -99,7 +141,7 @@ fn generate(macro_crate: &str, macro_type: &str, item: TokenStream) -> TokenStre
                 if in_generics {
                     if generics_ident {
                         generics_accum.extend([token]);
-                    } else {
+                    } else if !in_generic_default {
                         where_clause.extend([token]);
                     }
                 } else if in_where_clause {
