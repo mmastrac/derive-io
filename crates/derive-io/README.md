@@ -1,10 +1,20 @@
 # derive-io
 
-A Rust crate that provides derive macros for implementing `AsyncRead` and `AsyncWrite` traits on structs and enums.
+A Rust crate that provides derive macros for implementing sync and async I/O traits on structs and enums (including Tokio, stdlib I/O, and more).
+
+## Supported traits
+
+- `#[derive(Read)]`: `std::io::Read`
+- `#[derive(Write)]`: `std::io::Write`
+- `#[derive(AsyncRead)]`: `tokio::io::AsyncRead`
+- `#[derive(AsyncWrite)]`: `tokio::io::AsyncWrite`
+- `#[derive(AsDescriptor)]`:
+    - `std::os::{AsFd, AsRawFd}`
+    - `std::os::windows::io::{AsHandle, AsRawHandle, AsSocket, AsRawSocket}`
 
 ## Features
 
-- Derive `AsyncRead` and `AsyncWrite` traits for structs and enums
+- Derive I/O traits for structs and enums
 - Support for both named and tuple structs
 - Support for enums with multiple variants
 - Support for split read/write streams

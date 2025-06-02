@@ -1,13 +1,34 @@
 #![doc = include_str!("../README.md")]
 
-pub use derive_io_macros::{AsyncRead, AsyncWrite, Read, Write};
+pub use derive_io_macros::{AsDescriptor, AsyncRead, AsyncWrite, Read, Write};
 
 #[doc(hidden)]
 pub mod __support {
+    pub use crate::__derive_io_as_descriptor_parse as derive_io_as_descriptor_parse;
     pub use crate::__derive_io_async_read_parse as derive_io_async_read_parse;
     pub use crate::__derive_io_async_write_parse as derive_io_async_write_parse;
+    pub use crate::__derive_io_read_parse as derive_io_read_parse;
+    pub use crate::__derive_io_write_parse as derive_io_write_parse;
     pub use derive_io_macros::{
         extract_meta, find_annotated, find_annotated_multi, repeat_in_parenthesis,
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __derive_io_read_parse {
+    ( ($($input:tt)*) $generics:tt ($($where:tt)*) ) => {
+        const _: &str = stringify!( generics = $generics, where = $($where)* );
+        $crate::__derive_impl!(__parse_type__ Read $generics ($($where)*) read $($input)*);
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __derive_io_write_parse {
+    ( ($($input:tt)*) $generics:tt ($($where:tt)*) ) => {
+        const _: &str = stringify!( generics = $generics, where = $($where)* );
+        $crate::__derive_impl!(__parse_type__ Write $generics ($($where)*) write $($input)*);
     };
 }
 
@@ -26,6 +47,15 @@ macro_rules! __derive_io_async_write_parse {
     ( ($($input:tt)*) $generics:tt ($($where:tt)*) ) => {
         const _: &str = stringify!( generics = $generics, where = $($where)* );
         $crate::__derive_impl!(__parse_type__ AsyncWrite $generics ($($where)*) write $($input)*);
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __derive_io_as_descriptor_parse {
+    ( ($($input:tt)*) $generics:tt ($($where:tt)*) ) => {
+        const _: &str = stringify!( generics = $generics, where = $($where)* );
+        $crate::__derive_impl!(__parse_type__ AsDescriptor $generics ($($where)*) descriptor $($input)*);
     };
 }
 
@@ -120,6 +150,30 @@ macro_rules! __derive_impl {
         );
     };
 
+    // Generate the impl block for Read. Next macro: __impl__
+    ( __generate__ Read $this:ident $generics:tt $where:tt $ftypes:tt $type:ident $name:ident $struct:tt) => {
+        $crate::__derive_impl!(__impl__ ::std::io::Read : $name $generics $where $ftypes #[read] {
+            fn read(&mut self, buf: &mut [u8]) -> ::std::io::Result<usize> {
+                let $this = self;
+                $crate::__derive_impl!(__foreach__ $this (::std::io::Read read($this, buf)) $struct)
+            }
+        });
+    };
+
+    // Generate the impl block for Write. Next macro: __impl__
+    ( __generate__ Write $this:ident $generics:tt $where:tt $ftypes:tt $type:ident $name:ident $struct:tt) => {
+        $crate::__derive_impl!(__impl__ ::std::io::Write : $name $generics $where $ftypes #[write] {
+            fn write(&mut self, buf: &[u8]) -> ::std::io::Result<usize> {
+                let $this = self;
+                $crate::__derive_impl!(__foreach__ $this (::std::io::Write write($this, buf)) $struct)
+            }
+            fn flush(&mut self) -> ::std::io::Result<()> {
+                let $this = self;
+                $crate::__derive_impl!(__foreach__ $this (::std::io::Write flush($this)) $struct)
+            }
+        });
+    };
+
     // Generate the impl block for AsyncRead. Next macro: __impl__
     ( __generate__ AsyncRead $this:ident $generics:tt $where:tt $ftypes:tt $type:ident $name:ident $struct:tt) => {
         $crate::__derive_impl!(__impl__ ::tokio::io::AsyncRead : $name $generics $where $ftypes #[read] {
@@ -180,6 +234,50 @@ macro_rules! __derive_impl {
             ) -> ::std::task::Poll<::std::io::Result<usize>> {
                 let $this = self;
                 $crate::__derive_impl!(__foreach_pin__ $this (::tokio::io::AsyncWrite poll_write_vectored($this, cx, bufs)) $struct)
+            }
+        });
+    };
+
+    // std::os::{AsFd, AsRawFd}, std::os::windows::io::{AsHandle, AsRawHandle, AsSocket, AsRawSocket}
+    ( __generate__ AsDescriptor $this:ident $generics:tt $where:tt $ftypes:tt $type:ident $name:ident $struct:tt) => {
+        $crate::__derive_impl!(__impl__ ::std::os::fd::AsFd : $name $generics $where $ftypes #[read] {
+            fn as_fd(&self) -> ::std::os::fd::BorrowedFd<'_> {
+                let $this = self;
+                $crate::__derive_impl!(__foreach__ $this (::std::os::fd::AsFd as_fd($this)) $struct)
+            }
+        });
+        $crate::__derive_impl!(__impl__ ::std::os::fd::AsRawFd : $name $generics $where $ftypes #[read] {
+            fn as_raw_fd(&self) -> ::std::os::fd::RawFd {
+                let $this = self;
+                $crate::__derive_impl!(__foreach__ $this (::std::os::fd::AsRawFd as_raw_fd($this)) $struct)
+            }
+        });
+        #[cfg(windows)]
+        $crate::__derive_impl!(__impl__ ::std::os::windows::io::AsRawHandle : $name $generics $where $ftypes #[read] {
+            fn as_raw_handle(&self) -> ::std::os::windows::io::RawHandle {
+                let $this = self;
+                $crate::__derive_impl!(__foreach__ $this (::std::os::windows::io::AsRawHandle as_raw_handle($this)) $struct)
+            }
+        });
+        #[cfg(windows)]
+        $crate::__derive_impl!(__impl__ ::std::os::windows::io::AsHandle : $name $generics $where $ftypes #[read] {
+            fn as_handle(&self) -> ::std::os::windows::io::BorrowedHandle<'_> {
+                let $this = self;
+                $crate::__derive_impl!(__foreach__ $this (::std::os::windows::io::AsHandle as_handle($this)) $struct)
+            }
+        });
+        #[cfg(windows)]
+        $crate::__derive_impl!(__impl__ ::std::os::windows::io::AsSocket : $name $generics $where $ftypes #[read] {
+            fn as_socket(&self) -> ::std::os::windows::io::BorrowedSocket<'_> {
+                let $this = self;
+                $crate::__derive_impl!(__foreach__ $this (::std::os::windows::io::AsSocket as_socket($this)) $struct)
+            }
+        });
+        #[cfg(windows)]
+        $crate::__derive_impl!(__impl__ ::std::os::windows::io::AsRawSocket : $name $generics $where $ftypes #[read] {
+            fn as_raw_socket(&self) -> ::std::os::windows::io::RawSocket {
+                let $this = self;
+                $crate::__derive_impl!(__foreach__ $this (::std::os::windows::io::AsRawSocket as_raw_socket($this)) $struct)
             }
         });
     };
@@ -276,6 +374,9 @@ macro_rules! __derive_impl {
 
     ( __validate_macro_deep__ # $($rest:tt)*) => {
         compile_error!(concat!("Invalid #", stringify!($($rest)*), " attribute"));
+    };
+
+    ( __validate_macro__ #[descriptor]) => {
     };
 
     ( __validate_macro__ # $attr:tt) => {

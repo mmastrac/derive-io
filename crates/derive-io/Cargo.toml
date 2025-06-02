@@ -5,7 +5,7 @@ edition.workspace = true
 authors.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "derive macros for std::io::{Read,Write} and tokio's AsyncRead/AsyncWrite"
+description = "derive macros for `std::io::{Read,Write}`, `tokio::io::{AsyncRead,AsyncWrite}` and more"
 readme = "./README.md"
 
 [features]

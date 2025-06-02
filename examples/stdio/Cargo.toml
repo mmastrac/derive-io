@@ -1,0 +1,14 @@
+[package]
+name = "std-example"
+version.workspace = true
+edition.workspace = true
+publish = false
+default-run = "std-example"
+
+[dependencies]
+derive-io = { workspace = true, features = ["tokio"] }
+derive-io-macros = { workspace = true }
+derive_more = { version = "2", features = ["full"] }
+
+[[bin]]
+name = "std-example"

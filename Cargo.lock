@@ -253,6 +253,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "std-example"
+version = "0.2.2"
+dependencies = [
+ "derive-io",
+ "derive-io-macros",
+ "derive_more",
+]
+
+[[package]]
 name = "syn"
 version = "2.0.101"
 source = "registry+https://github.com/rust-lang/crates.io-index"

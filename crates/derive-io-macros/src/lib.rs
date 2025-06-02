@@ -15,16 +15,22 @@ pub fn derive_io_write(input: TokenStream) -> TokenStream {
     generate("derive_io", "derive_io_write", input)
 }
 
-/// `#[derive(AsyncRead)]`
+/// `#[derive(AsyncRead)]`: tokio::io::AsyncRead
 #[proc_macro_derive(AsyncRead, attributes(read))]
 pub fn derive_io_async_read(input: TokenStream) -> TokenStream {
     generate("derive_io", "derive_io_async_read", input)
 }
 
-/// `#[derive(AsyncWrite)]`
+/// `#[derive(AsyncWrite)]`: tokio::io::AsyncWrite
 #[proc_macro_derive(AsyncWrite, attributes(write))]
 pub fn derive_io_async_write(input: TokenStream) -> TokenStream {
     generate("derive_io", "derive_io_async_write", input)
+}
+
+/// `#[derive(AsDescriptor)]`: `std::os::{AsFd, AsRawFd}`, `std::os::windows::io::{AsHandle, AsRawHandle, AsSocket, AsRawSocket}`
+#[proc_macro_derive(AsDescriptor, attributes(descriptor))]
+pub fn derive_io_as_descriptor(input: TokenStream) -> TokenStream {
+    generate("derive_io", "derive_io_as_descriptor", input)
 }
 
 /// Generates the equivalent of this Rust code as a TokenStream:
