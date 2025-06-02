@@ -35,12 +35,35 @@ pub mod __support {
         type Type = Box<dyn tokio::io::AsyncWrite + Unpin>;
     }
 
+    #[cfg(unix)]
     impl IsSupported<&'static dyn std::os::fd::AsFd> for () {
         type Type = Box<dyn std::os::fd::AsFd + Unpin>;
     }
 
+    #[cfg(unix)]
+    // This one has buggy bounds in the rust stdlib
     impl IsSupported<&'static dyn std::os::fd::AsRawFd> for () {
         type Type = std::os::fd::RawFd;
+    }
+
+    #[cfg(windows)]
+    impl IsSupported<&'static dyn std::os::windows::io::AsHandle> for () {
+        type Type = std::os::windows::io::OwnedHandle;
+    }
+
+    #[cfg(windows)]
+    impl IsSupported<&'static dyn std::os::windows::io::AsRawHandle> for () {
+        type Type = std::os::windows::io::OwnedHandle;
+    }
+
+    #[cfg(windows)]
+    impl IsSupported<&'static dyn std::os::windows::io::AsSocket> for () {
+        type Type = std::os::windows::io::OwnedSocket;
+    }
+
+    #[cfg(windows)]
+    impl IsSupported<&'static dyn std::os::windows::io::AsRawSocket> for () {
+        type Type = std::os::windows::io::OwnedSocket;
     }
 }
 
@@ -270,12 +293,14 @@ macro_rules! __derive_impl {
 
     // std::os::{AsFd, AsRawFd}, std::os::windows::io::{AsHandle, AsRawHandle, AsSocket, AsRawSocket}
     ( __generate__ AsDescriptor $this:ident $generics:tt $where:tt $ftypes:tt $type:ident $name:ident $struct:tt) => {
+        #[cfg(unix)]
         $crate::__derive_impl!(__impl__ ::std::os::fd::AsFd : $name $generics $where $ftypes #[read] {
             fn as_fd(&self) -> ::std::os::fd::BorrowedFd<'_> {
                 let $this = self;
                 $crate::__derive_impl!(__foreach__ $this (::std::os::fd::AsFd as_fd($this)) $struct)
             }
         });
+        #[cfg(unix)]
         $crate::__derive_impl!(__impl__ ::std::os::fd::AsRawFd : $name $generics $where $ftypes #[read] {
             fn as_raw_fd(&self) -> ::std::os::fd::RawFd {
                 let $this = self;
