@@ -29,10 +29,16 @@ pub fn derive_io_async_write(input: TokenStream) -> TokenStream {
     generate("derive_io", "derive_io_async_write", input)
 }
 
-/// `#[derive(AsDescriptor)]`: `std::os::{AsFd, AsRawFd}`, `std::os::windows::io::{AsHandle, AsRawHandle, AsSocket, AsRawSocket}`
-#[proc_macro_derive(AsDescriptor, attributes(descriptor))]
-pub fn derive_io_as_descriptor(input: TokenStream) -> TokenStream {
-    generate("derive_io", "derive_io_as_descriptor", input)
+/// `#[derive(AsFileDescriptor)]`: `std::os::{AsFd, AsRawFd}`, `std::os::windows::io::{AsHandle, AsRawHandle}`
+#[proc_macro_derive(AsFileDescriptor, attributes(descriptor))]
+pub fn derive_io_as_file_descriptor(input: TokenStream) -> TokenStream {
+    generate("derive_io", "derive_io_as_file_descriptor", input)
+}
+
+/// `#[derive(AsSocketDescriptor)]`: `std::os::{AsFd, AsRawFd}`, `std::os::{AsSocket, AsRawSocket}`
+#[proc_macro_derive(AsSocketDescriptor, attributes(descriptor))]
+pub fn derive_io_as_socket_descriptor(input: TokenStream) -> TokenStream {
+    generate("derive_io", "derive_io_as_socket_descriptor", input)
 }
 
 /// Generates the equivalent of this Rust code as a TokenStream:

@@ -1,10 +1,15 @@
 #![doc = include_str!("../README.md")]
 
-pub use derive_io_macros::{AsDescriptor, AsyncRead, AsyncWrite, Read, Write};
+#[cfg(feature = "std")]
+pub use derive_io_macros::{AsFileDescriptor, AsSocketDescriptor, Read, Write};
+
+#[cfg(feature = "tokio")]
+pub use derive_io_macros::{AsyncRead, AsyncWrite};
 
 #[doc(hidden)]
 pub mod __support {
-    pub use crate::__derive_io_as_descriptor_parse as derive_io_as_descriptor_parse;
+    pub use crate::__derive_io_as_file_descriptor_parse as derive_io_as_file_descriptor_parse;
+    pub use crate::__derive_io_as_socket_descriptor_parse as derive_io_as_socket_descriptor_parse;
     pub use crate::__derive_io_async_read_parse as derive_io_async_read_parse;
     pub use crate::__derive_io_async_write_parse as derive_io_async_write_parse;
     pub use crate::__derive_io_read_parse as derive_io_read_parse;
@@ -27,10 +32,12 @@ pub mod __support {
         type Type = Box<dyn std::io::Write + Unpin>;
     }
 
+    #[cfg(feature = "tokio")]
     impl IsSupported<&'static dyn tokio::io::AsyncRead> for () {
         type Type = Box<dyn tokio::io::AsyncRead + Unpin>;
     }
 
+    #[cfg(feature = "tokio")]
     impl IsSupported<&'static dyn tokio::io::AsyncWrite> for () {
         type Type = Box<dyn tokio::io::AsyncWrite + Unpin>;
     }
@@ -105,10 +112,19 @@ macro_rules! __derive_io_async_write_parse {
 
 #[doc(hidden)]
 #[macro_export]
-macro_rules! __derive_io_as_descriptor_parse {
+macro_rules! __derive_io_as_file_descriptor_parse {
     ( ($($input:tt)*) $generics:tt ($($where:tt)*) ) => {
         const _: &str = stringify!( generics = $generics, where = $($where)* );
-        $crate::__derive_impl!(__parse_type__ AsDescriptor $generics ($($where)*) descriptor $($input)*);
+        $crate::__derive_impl!(__parse_type__ AsFileDescriptor $generics ($($where)*) descriptor $($input)*);
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __derive_io_as_socket_descriptor_parse {
+    ( ($($input:tt)*) $generics:tt ($($where:tt)*) ) => {
+        const _: &str = stringify!( generics = $generics, where = $($where)* );
+        $crate::__derive_impl!(__parse_type__ AsSocketDescriptor $generics ($($where)*) descriptor $($input)*);
     };
 }
 
@@ -291,8 +307,8 @@ macro_rules! __derive_impl {
         });
     };
 
-    // std::os::{AsFd, AsRawFd}, std::os::windows::io::{AsHandle, AsRawHandle, AsSocket, AsRawSocket}
-    ( __generate__ AsDescriptor $this:ident $generics:tt $where:tt $ftypes:tt $type:ident $name:ident $struct:tt) => {
+    // std::os::{AsFd, AsRawFd}, std::os::windows::io::{AsHandle, AsRawHandle}
+    ( __generate__ AsFileDescriptor $this:ident $generics:tt $where:tt $ftypes:tt $type:ident $name:ident $struct:tt) => {
         #[cfg(unix)]
         $crate::__derive_impl!(__impl__ ::std::os::fd::AsFd : $name $generics $where $ftypes #[read] {
             fn as_fd(&self) -> ::std::os::fd::BorrowedFd<'_> {
@@ -319,6 +335,24 @@ macro_rules! __derive_impl {
             fn as_handle(&self) -> ::std::os::windows::io::BorrowedHandle<'_> {
                 let $this = self;
                 $crate::__derive_impl!(__foreach__ $this (::std::os::windows::io::AsHandle as_handle($this)) $struct)
+            }
+        });
+    };
+
+    // std::os::{AsFd, AsRawFd}, std::os::windows::io::{AsSocket, AsRawSocket}
+    ( __generate__ AsSocketDescriptor $this:ident $generics:tt $where:tt $ftypes:tt $type:ident $name:ident $struct:tt) => {
+        #[cfg(unix)]
+        $crate::__derive_impl!(__impl__ ::std::os::fd::AsFd : $name $generics $where $ftypes #[read] {
+            fn as_fd(&self) -> ::std::os::fd::BorrowedFd<'_> {
+                let $this = self;
+                $crate::__derive_impl!(__foreach__ $this (::std::os::fd::AsFd as_fd($this)) $struct)
+            }
+        });
+        #[cfg(unix)]
+        $crate::__derive_impl!(__impl__ ::std::os::fd::AsRawFd : $name $generics $where $ftypes #[read] {
+            fn as_raw_fd(&self) -> ::std::os::fd::RawFd {
+                let $this = self;
+                $crate::__derive_impl!(__foreach__ $this (::std::os::fd::AsRawFd as_raw_fd($this)) $struct)
             }
         });
         #[cfg(windows)]

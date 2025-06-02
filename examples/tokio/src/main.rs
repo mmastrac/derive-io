@@ -1,7 +1,7 @@
 use std::marker::PhantomPinned;
 use std::net::SocketAddr;
 
-use derive_io::{AsDescriptor, AsyncRead, AsyncWrite};
+use derive_io::{AsFileDescriptor, AsSocketDescriptor, AsyncRead, AsyncWrite};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 
@@ -35,7 +35,7 @@ pub enum TokioStreams {
     },
 }
 
-#[derive(AsyncRead, AsyncWrite, AsDescriptor)]
+#[derive(AsyncRead, AsyncWrite, AsFileDescriptor)]
 pub enum EnumGeneric<T, S>
 where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite,
@@ -55,7 +55,7 @@ where
     ),
 }
 
-#[derive(AsyncRead, AsyncWrite, AsDescriptor)]
+#[derive(AsyncRead, AsyncWrite, AsSocketDescriptor)]
 pub struct TupleStruct(
     #[allow(unused)] u8,
     #[allow(unused)] u8,

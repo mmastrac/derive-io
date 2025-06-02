@@ -1,6 +1,6 @@
-use derive_io::{AsDescriptor, Read, Write};
+use derive_io::{AsFileDescriptor, Read, Write};
 
-#[derive(Read, Write, AsDescriptor)]
+#[derive(Read, Write, AsFileDescriptor)]
 struct StdioStreams {
     #[read]
     #[descriptor]
@@ -9,10 +9,18 @@ struct StdioStreams {
     stdout: std::io::Stdout,
 }
 
-#[derive(Read)]
+#[derive(Read, AsFileDescriptor)]
 enum Generic<S> {
-    Generic(#[read] S),
-    File(#[read] std::fs::File),
+    Generic(
+        #[read]
+        #[descriptor]
+        S,
+    ),
+    File(
+        #[read]
+        #[descriptor]
+        std::fs::File,
+    ),
 }
 
 fn main() {
