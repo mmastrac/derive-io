@@ -1,6 +1,8 @@
 //! Support macros for `derive-io`. This is not intended to be used directly and
 //! has no stable API.
 
+use std::collections::HashSet;
+
 use proc_macro::*;
 
 /// `#[derive(Read)]`
@@ -429,4 +431,50 @@ pub fn extract_meta(input: TokenStream) -> TokenStream {
     }
 
     default.stream()
+}
+
+#[proc_macro]
+pub fn type_has_generic(input: TokenStream) -> TokenStream {
+    let mut iterator = input.into_iter();
+
+    let type_ = expect_group("type", &mut iterator);
+    let generic = expect_group("generics", &mut iterator);
+    let if_true = expect_group("if_true", &mut iterator);
+    let if_false = expect_group("if_false", &mut iterator);
+
+    fn recursive_collect_generics(generics: &mut HashSet<String>, type_tokens: TokenStream) {
+        let mut iterator = type_tokens.into_iter();
+        while let Some(token) = iterator.next() {
+            if let TokenTree::Ident(ident) = &token {
+                generics.insert(ident.to_string());
+            } else if let TokenTree::Group(group) = token {
+                recursive_collect_generics(generics, group.stream());
+            }
+        }
+    }
+
+    let mut generics = HashSet::new();
+    recursive_collect_generics(&mut generics, generic.stream());
+
+    fn recursive_check_generics(generics: &HashSet<String>, type_tokens: TokenStream) -> bool {
+        let mut iterator = type_tokens.into_iter();
+        while let Some(token) = iterator.next() {
+            if let TokenTree::Ident(ident) = &token {
+                if generics.contains(&ident.to_string()) {
+                    return true;
+                }
+            } else if let TokenTree::Group(group) = token {
+                if recursive_check_generics(generics, group.stream()) {
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
+    if recursive_check_generics(&generics, type_.stream()) {
+        if_true.stream()
+    } else {
+        if_false.stream()
+    }
 }

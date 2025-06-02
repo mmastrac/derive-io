@@ -10,8 +10,38 @@ pub mod __support {
     pub use crate::__derive_io_read_parse as derive_io_read_parse;
     pub use crate::__derive_io_write_parse as derive_io_write_parse;
     pub use derive_io_macros::{
-        extract_meta, find_annotated, find_annotated_multi, repeat_in_parenthesis,
+        extract_meta, find_annotated, find_annotated_multi, repeat_in_parenthesis, type_has_generic,
     };
+
+    // We need a guaranteed valid implementation of this trait for each trait we support.
+    #[doc(hidden)]
+    pub trait IsSupported<T> {
+        type Type;
+    }
+
+    impl IsSupported<&'static dyn std::io::Read> for () {
+        type Type = Box<dyn std::io::Read + Unpin>;
+    }
+
+    impl IsSupported<&'static dyn std::io::Write> for () {
+        type Type = Box<dyn std::io::Write + Unpin>;
+    }
+
+    impl IsSupported<&'static dyn tokio::io::AsyncRead> for () {
+        type Type = Box<dyn tokio::io::AsyncRead + Unpin>;
+    }
+
+    impl IsSupported<&'static dyn tokio::io::AsyncWrite> for () {
+        type Type = Box<dyn tokio::io::AsyncWrite + Unpin>;
+    }
+
+    impl IsSupported<&'static dyn std::os::fd::AsFd> for () {
+        type Type = Box<dyn std::os::fd::AsFd + Unpin>;
+    }
+
+    impl IsSupported<&'static dyn std::os::fd::AsRawFd> for () {
+        type Type = std::os::fd::RawFd;
+    }
 }
 
 #[doc(hidden)]
@@ -282,12 +312,25 @@ macro_rules! __derive_impl {
         });
     };
 
+    // Duplicate the $generics block. Next macro: __impl_2__
+    ( __impl__ $trait:path : $name:ident $generics:tt ($($where:tt)*) ($($ftype:path)*) #[$attr:ident] $block:tt) => {
+        $crate::__derive_impl!(__impl_2__ $trait : $name $generics $generics ($($where)*) ($($ftype)*) #[$attr] $block);
+    };
+
     // Final macro. Generate the impl block.
-    ( __impl__ $trait:path : $name:ident ( $( ($($generic:tt)*) ),* ) ($($where:tt)*) ($($ftype:path)*) #[$attr:ident] $block:tt) => {
+    ( __impl_2__ $trait:path : $name:ident $generics:tt ( $( ($($generic:tt)*) ),* ) ($($where:tt)*) ($($ftype:path)*) #[$attr:ident] $block:tt) => {
         impl <$($($generic)*),*> $trait for $name <$($($generic)*),*>
             where
-                // Add a where clause for each stream type
-                $($ftype : $trait,)*
+                // Add a where clause for each stream type. If it contains a generic, constrain it otherwise
+                // use a placeholder type that implements the trait for certain.
+                $(
+                    $crate::__support::type_has_generic!(
+                        ($ftype)
+                        $generics
+                        ($ftype)
+                        (<() as $crate::__support::IsSupported::<&'static dyn $trait>>::Type)
+                    ) : $trait,
+                )*
                 $($where)*
         $block
     };

@@ -25,7 +25,7 @@ pub enum TokioStreams {
     Windows(
         #[read]
         #[write]
-        tokio::net::windows::NamedPipeClient,
+        tokio::net::windows::named_pipe::NamedPipeClient,
     ),
     Split {
         #[read]

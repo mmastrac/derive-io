@@ -9,6 +9,12 @@ struct StdioStreams {
     stdout: std::io::Stdout,
 }
 
+#[derive(Read)]
+enum Generic<S> {
+    Generic(#[read] S),
+    File(#[read] std::fs::File),
+}
+
 fn main() {
     use std::io::{Read, Write};
 
