@@ -10,5 +10,5 @@ authors = ["Matt Mastracci <matthew@mastracci.com>"]
 repository = "https://github.com/mmastrac/derive-io"
 
 [workspace.dependencies]
-derive-io-macros = { path = "crates/derive-io-macros", version = "=0.2.2" }
-derive-io = { path = "crates/derive-io", version = "=0.2.2" }
+derive-io-macros = { path = "crates/derive-io-macros", version = "=0.3.0" }
+derive-io = { path = "crates/derive-io", version = "=0.3.0" }
