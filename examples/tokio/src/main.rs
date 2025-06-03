@@ -8,27 +8,31 @@ use tokio::net::{TcpListener, TcpStream};
 #[cfg(unix)]
 use tokio::net::UnixStream;
 
-#[derive(AsyncRead, AsyncWrite)]
+#[derive(AsyncRead, AsyncWrite, AsSocketDescriptor)]
 pub enum TokioStreams {
     Tcp(
         #[read]
         #[write]
+        #[descriptor]
         TcpStream,
     ),
     #[cfg(unix)]
     Unix(
         #[read]
         #[write]
+        #[descriptor]
         UnixStream,
     ),
     #[cfg(windows)]
     Windows(
         #[read]
         #[write]
+        #[descriptor]
         tokio::net::windows::named_pipe::NamedPipeClient,
     ),
     Split {
         #[read]
+        #[descriptor(as_ref)]
         read: tokio::net::tcp::OwnedReadHalf,
         #[write]
         write: tokio::net::tcp::OwnedWriteHalf,
@@ -188,6 +192,28 @@ enum ComplexStream<'a, S: std::fmt::Debug, D: std::any::Any = ()> {
         GenericUnrelated<S, D>,
         Option<&'a D>,
     ),
+}
+
+struct Holder(TcpStream);
+
+impl AsRef<TcpStream> for Holder {
+    fn as_ref(&self) -> &TcpStream {
+        &self.0
+    }
+}
+
+impl AsMut<TcpStream> for Holder {
+    fn as_mut(&mut self) -> &mut TcpStream {
+        &mut self.0
+    }
+}
+
+#[derive(AsyncRead, AsyncWrite, AsSocketDescriptor)]
+pub struct AsRefStruct {
+    #[read(as_ref)]
+    #[write(as_ref)]
+    #[descriptor(as_ref)]
+    stream: Holder,
 }
 
 #[tokio::main]

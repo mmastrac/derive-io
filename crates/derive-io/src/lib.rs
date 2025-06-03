@@ -15,7 +15,8 @@ pub mod __support {
     pub use crate::__derive_io_read_parse as derive_io_read_parse;
     pub use crate::__derive_io_write_parse as derive_io_write_parse;
     pub use derive_io_macros::{
-        extract_meta, find_annotated, find_annotated_multi, repeat_in_parenthesis, type_has_generic,
+        extract_meta, find_annotated, find_annotated_multi, if_meta, repeat_in_parenthesis,
+        type_has_generic,
     };
 
     // We need a guaranteed valid implementation of this trait for each trait we support.
@@ -419,7 +420,20 @@ macro_rules! __derive_impl {
     )*}) =>{
         {
             match $this {
-                $( $case {..} => { let $this = $access; $crate::__derive_impl!(__foreach_inner__ # $attr $fn) } )*
+                $( $case {..} => {
+                    $crate::__support::if_meta!(
+                        as_ref
+                        $attr
+                        ({
+                            let $this = $access.as_ref();
+                            $crate::__derive_impl!(__foreach_inner__ # $attr $fn)
+                        })
+                        ({
+                            let $this = $access;
+                            $crate::__derive_impl!(__foreach_inner__ # $attr $fn)
+                        })
+                    )
+                } )*
             }
         }
     };
@@ -430,12 +444,21 @@ macro_rules! __derive_impl {
         {
             let mut $this = unsafe { $this.get_unchecked_mut() };
             match $this {
-                $(
-                    $case {..} => {
-                        let $this = unsafe { ::std::pin::Pin::new_unchecked($access) };
-                        $crate::__derive_impl!(__foreach_inner__ # $attr $fn)
-                    }
-                )*
+                $( $case {..} => {
+                    $crate::__support::if_meta!(
+                        as_ref
+                        $attr
+                        ({
+                            let $this = unsafe { ::std::pin::Pin::new_unchecked($access) };
+                            let $this = ::std::pin::Pin::new($this.get_mut().as_mut());
+                            $crate::__derive_impl!(__foreach_inner__ # $attr $fn)
+                        })
+                        ({
+                            let $this = unsafe { ::std::pin::Pin::new_unchecked($access) };
+                            $crate::__derive_impl!(__foreach_inner__ # $attr $fn)
+                        })
+                    )
+                } )*
             }
         }
     };
@@ -455,17 +478,18 @@ macro_rules! __derive_impl {
     ( __validate_macro__ #[read]) => {
     };
 
-    ( __validate_macro__ #[read(poll_read=$poll_read:ident)]) => {
+    ( __validate_macro__ #[read($( as_ref )? $(,)? $( poll_read=$poll_read:ident )? )]) => {
     };
 
     ( __validate_macro__ #[write]) => {
     };
 
-    ( __validate_macro__ #[write($($key:ident=$value:ident),*)]) => {
-        $crate::__derive_impl!(__validate_macro_deep__ #[write($($key=$value),*)]);
+    ( __validate_macro__ #[write($($key:ident $(=$value:ident)?),* $(,)?)]) => {
+        $crate::__derive_impl!(__validate_macro_deep__ #[write($($key $(=$value)?),*)]);
     };
 
     ( __validate_macro_deep__ #[write(
+        $( as_ref )? $(,)?
         $( poll_write=$poll_write:ident )? $(,)?
         $( poll_flush=$poll_flush:ident )? $(,)?
         $( poll_shutdown=$poll_shutdown:ident )? $(,)?
@@ -479,6 +503,9 @@ macro_rules! __derive_impl {
     };
 
     ( __validate_macro__ #[descriptor]) => {
+    };
+
+    ( __validate_macro__ #[descriptor(as_ref)]) => {
     };
 
     ( __validate_macro__ # $attr:tt) => {

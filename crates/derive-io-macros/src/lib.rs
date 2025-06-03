@@ -424,7 +424,18 @@ pub fn extract_meta(input: TokenStream) -> TokenStream {
         let Some(key) = key else {
             break;
         };
-        expect_punct('=', &mut haystack);
+        let Some(next) = haystack.next() else {
+            break;
+        };
+        // Ignore simple attributes
+        let TokenTree::Punct(punct) = next else {
+            panic!("Expected = after key, got {:?}", next);
+        };
+
+        if punct.as_char() == ',' {
+            continue;
+        }
+
         let value = expect_ident("value", &mut haystack);
 
         if key.to_string() == needle.to_string() {
@@ -437,6 +448,42 @@ pub fn extract_meta(input: TokenStream) -> TokenStream {
     }
 
     default.stream()
+}
+
+#[proc_macro]
+pub fn if_meta(input: TokenStream) -> TokenStream {
+    let mut iterator = input.into_iter();
+    let needle = expect_ident("needle", &mut iterator);
+    let haystack = expect_group("haystack", &mut iterator);
+    let if_true = expect_group("if_true", &mut iterator);
+    let if_false = expect_group("if_false", &mut iterator);
+
+    let mut haystack = haystack.stream().into_iter();
+
+    loop {
+        let attr = haystack.next();
+        if let Some(TokenTree::Group(ref group)) = attr {
+            haystack = group.stream().into_iter();
+            continue;
+        }
+        break;
+    }
+
+    loop {
+        let key = haystack.next();
+        if let Some(TokenTree::Group(ref group)) = key {
+            haystack = group.stream().into_iter();
+            continue;
+        }
+        let Some(key) = key else {
+            break;
+        };
+        if key.to_string() == needle.to_string() {
+            return if_true.stream();
+        }
+    }
+
+    if_false.stream()
 }
 
 #[proc_macro]

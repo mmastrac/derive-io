@@ -8,9 +8,12 @@ A Rust crate that provides derive macros for implementing sync and async I/O tra
 - `#[derive(Write)]`: `std::io::Write`
 - `#[derive(AsyncRead)]`: `tokio::io::AsyncRead`
 - `#[derive(AsyncWrite)]`: `tokio::io::AsyncWrite`
-- `#[derive(AsDescriptor)]`:
-    - `std::os::{AsFd, AsRawFd}`
-    - `std::os::windows::io::{AsHandle, AsRawHandle, AsSocket, AsRawSocket}`
+- `#[derive(AsFileDescriptor)]`:
+    - `std::os::fd::{AsFd, AsRawFd}`
+    - `std::os::windows::io::{AsHandle, AsRawHandle}`
+- `#[derive(AsSocketDescriptor)]`:
+    - `std::os::fd::{AsFd, AsRawFd}`
+    - `std::os::windows::io::{AsSocket, AsRawSocket}`
 
 ## Features
 
@@ -20,20 +23,23 @@ A Rust crate that provides derive macros for implementing sync and async I/O tra
 - Support for split read/write streams
 - Support for generic types
 - Individual methods can be overridden with custom implementations
+- Support for `as_ref` attribute on fields to delegate to the inner type
+  - Note: for traits requiring a pinned-self (ie: async read/write), the holder
+    type must be `Unpin`!
 
 ## Tokio
 
 ```rust
 use tokio::net::*;
-use derive_io::{AsyncRead, AsyncWrite};
+use derive_io::{AsyncRead, AsyncWrite, AsSocketDescriptor};
 
-#[derive(AsyncRead, AsyncWrite)]
+#[derive(AsyncRead, AsyncWrite, AsSocketDescriptor)]
 pub enum TokioStreams {
-    Tcp(#[read] #[write] TcpStream),
+    Tcp(#[read] #[write] #[descriptor] TcpStream),
     #[cfg(unix)]
-    Unix(#[read] #[write] UnixStream),
+    Unix(#[read] #[write] #[descriptor] UnixStream),
     Split{ 
-        #[read] read: tokio::net::tcp::OwnedReadHalf, 
+        #[read] #[descriptor(as_ref)] read: tokio::net::tcp::OwnedReadHalf, 
         #[write] write: tokio::net::tcp::OwnedWriteHalf,
     },
 }
