@@ -6,36 +6,90 @@ use std::collections::HashSet;
 use proc_macro::*;
 
 /// `#[derive(Read)]`
+///
+/// Derives `std::io::Read` for the given struct.
+///
+/// Supported attributes:
+///
+/// - `#[read]`: Marks the field as a read stream.
+/// - `#[read(as_ref)]`: Delegates the field to the inner type using `AsRef`/`AsMut`.
+/// - `#[read(deref)]`: Delegates the field to the inner type using `Deref`/`DerefMut`.
+/// - `#[read(<function>=<override>)]`: Overrides the default `<function>` method with the given override function.
 #[proc_macro_derive(Read, attributes(read))]
 pub fn derive_io_read(input: TokenStream) -> TokenStream {
     generate("derive_io", "derive_io_read", input)
 }
 
 /// `#[derive(Write)]`
+///
+/// Derives `std::io::Write` for the given struct.
+///
+/// Supported attributes:
+///
+/// - `#[write]`: Marks the field as a write stream.
+/// - `#[write(as_ref)]`: Delegates the field to the inner type using `AsRef`/`AsMut`.
+/// - `#[write(deref)]`: Delegates the field to the inner type using `AsRef`/`AsMut`.
+/// - `#[write(<function>=<override>)]`: Overrides the default `<function>` method with the given override function.
 #[proc_macro_derive(Write, attributes(write))]
 pub fn derive_io_write(input: TokenStream) -> TokenStream {
     generate("derive_io", "derive_io_write", input)
 }
 
-/// `#[derive(AsyncRead)]`: tokio::io::AsyncRead
+/// `#[derive(AsyncRead)]`:
+///
+/// Derives `tokio::io::AsyncRead` for the given struct.
+///
+/// Supported attributes:
+///
+/// - `#[read]`: Marks the field as a read stream.
+/// - `#[read(as_ref)]`: Delegates the field to the inner type using `AsRef`/`AsMut`.
+/// - `#[read(deref)]`: Delegates the field to the inner type using `Deref`/`DerefMut`.
+/// - `#[read(<function>=<override>)]`: Overrides the default `<function>` method with the given override function.
 #[proc_macro_derive(AsyncRead, attributes(read))]
 pub fn derive_io_async_read(input: TokenStream) -> TokenStream {
     generate("derive_io", "derive_io_async_read", input)
 }
 
-/// `#[derive(AsyncWrite)]`: tokio::io::AsyncWrite
+/// `#[derive(AsyncWrite)]`:
+///
+/// Derives `tokio::io::AsyncWrite` for the given struct.
+///
+/// Supported attributes:
+///
+/// - `#[write]`: Marks the field as a write stream.
+/// - `#[write(as_ref)]`: Delegates the field to the inner type using `AsRef`/`AsMut`.
+/// - `#[write(deref)]`: Delegates the field to the inner type using `Deref`/`DerefMut`.
+/// - `#[write(<function>=<override>)]`: Overrides the default `<function>` method with the given override function.
 #[proc_macro_derive(AsyncWrite, attributes(write))]
 pub fn derive_io_async_write(input: TokenStream) -> TokenStream {
     generate("derive_io", "derive_io_async_write", input)
 }
 
-/// `#[derive(AsFileDescriptor)]`: `std::os::{AsFd, AsRawFd}`, `std::os::windows::io::{AsHandle, AsRawHandle}`
+/// `#[derive(AsFileDescriptor)]`
+///
+/// Derives `std::os::fd::{AsFd, AsRawFd}` and `std::os::windows::io::{AsHandle, AsRawHandle}` for the given struct.
+///
+/// Supported attributes:
+///
+/// - `#[descriptor]`: Marks the field as a file descriptor.
+/// - `#[descriptor(as_ref)]`: Delegates the field to the inner type using `AsRef`/`AsMut`.
+/// - `#[descriptor(deref)]`: Delegates the field to the inner type using `Deref`/`DerefMut`.
+/// - `#[descriptor(<function>=<override>)]`: Overrides the default `<function>` method with the given override function.
 #[proc_macro_derive(AsFileDescriptor, attributes(descriptor))]
 pub fn derive_io_as_file_descriptor(input: TokenStream) -> TokenStream {
     generate("derive_io", "derive_io_as_file_descriptor", input)
 }
 
-/// `#[derive(AsSocketDescriptor)]`: `std::os::{AsFd, AsRawFd}`, `std::os::{AsSocket, AsRawSocket}`
+/// `#[derive(AsSocketDescriptor)]`
+///
+/// Derives `std::os::fd::{AsFd, AsRawFd}` and `std::os::windows::io::{AsSocket, AsRawSocket}` for the given struct.
+///
+/// Supported attributes:
+///
+/// - `#[descriptor]`: Marks the field as a socket descriptor.
+/// - `#[descriptor(as_ref)]`: Delegates the field to the inner type using `AsRef`/`AsMut`.
+/// - `#[descriptor(deref)]`: Delegates the field to the inner type using `Deref`/`DerefMut`.
+/// - `#[descriptor(<function>=<override>)]`: Overrides the default `<function>` method with the given override function.
 #[proc_macro_derive(AsSocketDescriptor, attributes(descriptor))]
 pub fn derive_io_as_socket_descriptor(input: TokenStream) -> TokenStream {
     generate("derive_io", "derive_io_as_socket_descriptor", input)

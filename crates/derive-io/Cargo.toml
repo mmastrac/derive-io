@@ -16,3 +16,6 @@ tokio = ["dep:tokio"]
 [dependencies]
 derive-io-macros.workspace = true
 tokio = { version = "1.45", optional = true }
+
+[package.metadata.docs.rs]
+features = ["tokio"]

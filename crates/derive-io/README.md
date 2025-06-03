@@ -23,7 +23,7 @@ A Rust crate that provides derive macros for implementing sync and async I/O tra
 - Support for split read/write streams
 - Support for generic types
 - Individual methods can be overridden with custom implementations
-- Support for `as_ref` attribute on fields to delegate to the inner type
+- Support for `as_ref` or `deref` attribute on fields to delegate to the inner type
   - Note: for traits requiring a pinned-self (ie: async read/write), the holder
     type must be `Unpin`!
 

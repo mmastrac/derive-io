@@ -308,7 +308,7 @@ macro_rules! __derive_impl {
         });
     };
 
-    // std::os::{AsFd, AsRawFd}, std::os::windows::io::{AsHandle, AsRawHandle}
+    // std::os::fd::{AsFd, AsRawFd}, std::os::windows::io::{AsHandle, AsRawHandle}
     ( __generate__ AsFileDescriptor $this:ident $generics:tt $where:tt $ftypes:tt $type:ident $name:ident $struct:tt) => {
         #[cfg(unix)]
         $crate::__derive_impl!(__impl__ ::std::os::fd::AsFd : $name $generics $where $ftypes #[read] {
@@ -340,7 +340,7 @@ macro_rules! __derive_impl {
         });
     };
 
-    // std::os::{AsFd, AsRawFd}, std::os::windows::io::{AsSocket, AsRawSocket}
+    // std::os::fd::{AsFd, AsRawFd}, std::os::windows::io::{AsSocket, AsRawSocket}
     ( __generate__ AsSocketDescriptor $this:ident $generics:tt $where:tt $ftypes:tt $type:ident $name:ident $struct:tt) => {
         #[cfg(unix)]
         $crate::__derive_impl!(__impl__ ::std::os::fd::AsFd : $name $generics $where $ftypes #[read] {
@@ -428,10 +428,18 @@ macro_rules! __derive_impl {
                             let $this = $access.as_ref();
                             $crate::__derive_impl!(__foreach_inner__ # $attr $fn)
                         })
-                        ({
-                            let $this = $access;
-                            $crate::__derive_impl!(__foreach_inner__ # $attr $fn)
-                        })
+                        ($crate::__support::if_meta!(
+                            deref
+                            $attr
+                            ({
+                                let $this = std::ops::Deref::deref($access);
+                                $crate::__derive_impl!(__foreach_inner__ # $attr $fn)
+                            })
+                            ({
+                                let $this = $access;
+                                $crate::__derive_impl!(__foreach_inner__ # $attr $fn)
+                            })
+                        ))
                     )
                 } )*
             }
@@ -453,10 +461,19 @@ macro_rules! __derive_impl {
                             let $this = ::std::pin::Pin::new($this.get_mut().as_mut());
                             $crate::__derive_impl!(__foreach_inner__ # $attr $fn)
                         })
-                        ({
-                            let $this = unsafe { ::std::pin::Pin::new_unchecked($access) };
-                            $crate::__derive_impl!(__foreach_inner__ # $attr $fn)
-                        })
+                        ($crate::__support::if_meta!(
+                            deref
+                            $attr
+                            ({
+                                let $this = unsafe { ::std::pin::Pin::new_unchecked($access) };
+                                let $this = ::std::pin::Pin::new(std::ops::DerefMut::deref_mut($this.get_mut()));
+                                $crate::__derive_impl!(__foreach_inner__ # $attr $fn)
+                            })
+                            ({
+                                let $this = unsafe { ::std::pin::Pin::new_unchecked($access) };
+                                $crate::__derive_impl!(__foreach_inner__ # $attr $fn)
+                            })
+                        ))
                     )
                 } )*
             }
@@ -478,7 +495,7 @@ macro_rules! __derive_impl {
     ( __validate_macro__ #[read]) => {
     };
 
-    ( __validate_macro__ #[read($( as_ref )? $(,)? $( poll_read=$poll_read:ident )? )]) => {
+    ( __validate_macro__ #[read($( as_ref )? $(,)? $( deref )? $(,)? $( poll_read=$poll_read:ident )? )]) => {
     };
 
     ( __validate_macro__ #[write]) => {
@@ -490,6 +507,7 @@ macro_rules! __derive_impl {
 
     ( __validate_macro_deep__ #[write(
         $( as_ref )? $(,)?
+        $( deref )? $(,)?
         $( poll_write=$poll_write:ident )? $(,)?
         $( poll_flush=$poll_flush:ident )? $(,)?
         $( poll_shutdown=$poll_shutdown:ident )? $(,)?
@@ -506,6 +524,9 @@ macro_rules! __derive_impl {
     };
 
     ( __validate_macro__ #[descriptor(as_ref)]) => {
+    };
+
+    ( __validate_macro__ #[descriptor(deref)]) => {
     };
 
     ( __validate_macro__ # $attr:tt) => {
