@@ -290,17 +290,6 @@ fn expect_literal(named: &str, iterator: &mut impl Iterator<Item = TokenTree>) -
     literal
 }
 
-fn expect_punct(named: char, iterator: &mut impl Iterator<Item = TokenTree>) -> Punct {
-    let next = iterator.next();
-    let Some(TokenTree::Punct(punct)) = next else {
-        panic!("Expected {} punct, got {:?}", named, next);
-    };
-    if punct.as_char() != named {
-        panic!("Expected {} punct, got {:?}", named, punct);
-    }
-    punct
-}
-
 /// Unwrap a grouped meta element to its final group.
 fn expect_is_meta(named: &str, mut attr: TokenTree) -> Group {
     let outer = attr.clone();
