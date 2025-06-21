@@ -1,7 +1,7 @@
 #![doc = include_str!("../README.md")]
 
 #[cfg(feature = "std")]
-pub use derive_io_macros::{AsFileDescriptor, AsSocketDescriptor, Read, Write};
+pub use derive_io_macros::{AsFileDescriptor, AsSocketDescriptor, BufRead, Read, Write};
 
 #[cfg(feature = "tokio")]
 pub use derive_io_macros::{AsyncRead, AsyncWrite};
@@ -12,6 +12,7 @@ pub mod __support {
     pub use crate::__derive_io_as_socket_descriptor_parse as derive_io_as_socket_descriptor_parse;
     pub use crate::__derive_io_async_read_parse as derive_io_async_read_parse;
     pub use crate::__derive_io_async_write_parse as derive_io_async_write_parse;
+    pub use crate::__derive_io_bufread_parse as derive_io_bufread_parse;
     pub use crate::__derive_io_read_parse as derive_io_read_parse;
     pub use crate::__derive_io_write_parse as derive_io_write_parse;
     pub use derive_io_macros::{
@@ -27,6 +28,10 @@ pub mod __support {
 
     impl IsSupported<&'static dyn std::io::Read> for () {
         type Type = Box<dyn std::io::Read + Unpin>;
+    }
+
+    impl IsSupported<&'static dyn std::io::BufRead> for () {
+        type Type = Box<dyn std::io::BufRead + Unpin>;
     }
 
     impl IsSupported<&'static dyn std::io::Write> for () {
@@ -81,6 +86,15 @@ macro_rules! __derive_io_read_parse {
     ( ($($input:tt)*) $generics:tt ($($where:tt)*) ) => {
         const _: &str = stringify!( generics = $generics, where = $($where)* );
         $crate::__derive_impl!(__parse_type__ Read $generics ($($where)*) read $($input)*);
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __derive_io_bufread_parse {
+    ( ($($input:tt)*) $generics:tt ($($where:tt)*) ) => {
+        const _: &str = stringify!( generics = $generics, where = $($where)* );
+        $crate::__derive_impl!(__parse_type__ BufRead $generics ($($where)*) read $($input)*);
     };
 }
 
@@ -227,6 +241,54 @@ macro_rules! __derive_impl {
                 let $this = self;
                 $crate::__derive_impl!(__foreach__ $this (::std::io::Read read($this, buf)) $struct)
             }
+        });
+    };
+
+    // Generate the impl block for BufRead. Next macro: __impl__
+    ( __generate__ BufRead $this:ident $generics:tt $where:tt $ftypes:tt $type:ident $name:ident $struct:tt) => {
+        $crate::__derive_impl!(__impl__ ::std::io::BufRead : $name $generics $where $ftypes #[read] {
+            fn fill_buf(&mut self) -> ::std::io::Result<&[u8]> {
+                let $this = self;
+                $crate::__derive_impl!(__foreach__ $this (::std::io::BufRead fill_buf($this)) $struct)
+            }
+
+            fn consume(&mut self, amt: usize) {
+                let $this = self;
+                $crate::__derive_impl!(__foreach__ $this (::std::io::BufRead consume($this, amt)) $struct)
+            }
+
+            // Not yet stable!
+            // fn has_data_left(&mut self) -> ::std::io::Result<bool> {
+            //     let $this = self;
+            //     $crate::__derive_impl!(__foreach__ $this (::std::io::BufRead has_data_left($this)) $struct)
+            // }
+
+            fn read_until(&mut self, byte: u8, buf: &mut Vec<u8>) -> ::std::io::Result<usize> {
+                let $this = self;
+                $crate::__derive_impl!(__foreach__ $this (::std::io::BufRead read_until($this, byte, buf)) $struct)
+            }
+
+            fn skip_until(&mut self, byte: u8) -> ::std::io::Result<usize> {
+                let $this = self;
+                $crate::__derive_impl!(__foreach__ $this (::std::io::BufRead skip_until($this, byte)) $struct)
+            }
+
+            fn read_line(&mut self, buf: &mut String) -> ::std::io::Result<usize> {
+                let $this = self;
+                $crate::__derive_impl!(__foreach__ $this (::std::io::BufRead read_line($this, buf)) $struct)
+            }
+
+            // Unimplemented because we cannot construct our own `Split`
+            // fn split(self, byte: u8) -> ::std::io::Split<Self> {
+            //     let $this = self;
+            //     $crate::__derive_impl!(__foreach__ $this (::std::io::BufRead split($this, byte)) $struct)
+            // }
+
+            // Unimplemented because we cannot construct our own `Lines`
+            // fn lines(self) -> ::std::io::Lines<Self> {
+            //     let $this = self;
+            //     $crate::__derive_impl!(__foreach__ $this (::std::io::BufRead lines($this)) $struct)
+            // }
         });
     };
 

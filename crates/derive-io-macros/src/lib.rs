@@ -20,6 +20,31 @@ pub fn derive_io_read(input: TokenStream) -> TokenStream {
     generate("derive_io", "derive_io_read", input)
 }
 
+/// `#[derive(BufRead)]`
+///
+/// Derives `std::io::BufRead` for the given struct. `std::io::Read` must also
+/// be implemented.
+///
+/// Unsupported methods:
+///
+/// - `split` (std-internal implementation)
+/// - `lines` (std-internal implementation)
+/// - `has_data_left` (unstable feature)
+///
+/// Supported attributes:
+///
+/// - `#[read]`: Marks the field as a read stream.
+/// - `#[read(as_ref)]`: Delegates the field to the inner type using
+///   `AsRef`/`AsMut`.
+/// - `#[read(deref)]`: Delegates the field to the inner type using
+///   `Deref`/`DerefMut`.
+/// - `#[read(<function>=<override>)]`: Overrides the default `<function>`
+///   method with the given override function.
+#[proc_macro_derive(BufRead, attributes(read))]
+pub fn derive_io_bufread(input: TokenStream) -> TokenStream {
+    generate("derive_io", "derive_io_bufread", input)
+}
+
 /// `#[derive(Write)]`
 ///
 /// Derives `std::io::Write` for the given struct.
