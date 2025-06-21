@@ -10,6 +10,7 @@ A Rust crate that provides derive macros for implementing sync and async I/O tra
 ## Supported traits
 
 - `#[derive(Read)]`: `std::io::Read`
+- `#[derive(BufRead)]`: `std:io::BufRead`
 - `#[derive(Write)]`: `std::io::Write`
 - `#[derive(AsyncRead)]`: `tokio::io::AsyncRead`
 - `#[derive(AsyncWrite)]`: `tokio::io::AsyncWrite`
@@ -22,7 +23,7 @@ A Rust crate that provides derive macros for implementing sync and async I/O tra
 
 ## Features
 
-- Derive I/O traits for structs and enums
+- Derive most common I/O traits for structs and enums
 - Support for both named and tuple structs
 - Support for enums with multiple variants
 - Support for split read/write streams
