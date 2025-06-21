@@ -171,7 +171,7 @@ macro_rules! __derive_impl {
 
     // Parse named structs, identifying annotated fields. Next macro: __process_derive__
     ( __parse_type__ $generator:ident $generics:tt $where:tt $attr:ident
-        $(#[$sattr:meta])* $vis:vis struct $name:ident { $( $(#[$fattr:meta])* $fname:ident : $ftype:ty ),* $(,)? }
+        $(#[$sattr:meta])* $vis:vis struct $name:ident { $( $(#[$fattr:meta])* $fvis:vis $fname:ident : $ftype:ty ),* $(,)? }
     ) => {
         $crate::__support::find_annotated_multi!(
             ($crate::__derive_impl)
@@ -186,7 +186,7 @@ macro_rules! __derive_impl {
 
     // Parse tuple structs, identifying annotated fields. Next macro: __process_derive__
     ( __parse_type__ $generator:ident $generics:tt $where:tt $attr:ident
-        $(#[$sattr:meta])* $vis:vis struct $name:ident ( $( $(#[$fattr:meta])* $ftype:ty ),* $(,)? );
+        $(#[$sattr:meta])* $vis:vis struct $name:ident ( $( $(#[$fattr:meta])* $fvis:vis $ftype:ty ),* $(,)? );
     ) => {
         $crate::__support::find_annotated_multi!(
             ($crate::__derive_impl)

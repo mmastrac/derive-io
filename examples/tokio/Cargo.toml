@@ -13,3 +13,9 @@ derive_more = { version = "2", features = ["full"] }
 
 [[bin]]
 name = "tokio-example"
+
+[lib]
+
+[[test]]
+name = "test_runner"
+harness = false

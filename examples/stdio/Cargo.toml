@@ -1,9 +1,9 @@
 [package]
-name = "std-example"
+name = "stdio-example"
 version.workspace = true
 edition.workspace = true
 publish = false
-default-run = "std-example"
+default-run = "stdio-example"
 
 [dependencies]
 derive-io = { workspace = true, features = ["tokio"] }
@@ -11,4 +11,10 @@ derive-io-macros.workspace = true
 derive_more = { version = "2", features = ["full"] }
 
 [[bin]]
-name = "std-example"
+name = "stdio-example"
+
+[lib]
+
+[[test]]
+name = "test_runner"
+harness = false
