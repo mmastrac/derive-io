@@ -32,6 +32,6 @@ fn main() {
     };
 
     let mut buf = [0; 1];
-    streams.read(&mut buf).unwrap();
-    streams.write(&buf).unwrap();
+    _ = streams.read(&mut buf).unwrap();
+    _ = streams.write(&buf).unwrap();
 }

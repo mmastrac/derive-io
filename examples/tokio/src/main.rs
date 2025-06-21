@@ -147,31 +147,31 @@ pub struct Override {
 }
 
 fn override_poll_read<S: tokio::io::AsyncRead>(
-    stm: std::pin::Pin<&mut S>,
-    cx: &mut std::task::Context<'_>,
-    buf: &mut tokio::io::ReadBuf<'_>,
+    _stm: std::pin::Pin<&mut S>,
+    _cx: &mut std::task::Context<'_>,
+    _buf: &mut tokio::io::ReadBuf<'_>,
 ) -> std::task::Poll<std::io::Result<()>> {
     std::task::Poll::Pending
 }
 
 fn override_poll_write<S: tokio::io::AsyncWrite>(
-    stm: std::pin::Pin<&mut S>,
-    cx: &mut std::task::Context<'_>,
-    buf: &[u8],
+    _stm: std::pin::Pin<&mut S>,
+    _cx: &mut std::task::Context<'_>,
+    _buf: &[u8],
 ) -> std::task::Poll<std::io::Result<usize>> {
     std::task::Poll::Pending
 }
 
 fn override_poll_flush<S: tokio::io::AsyncWrite>(
-    stm: std::pin::Pin<&mut S>,
-    cx: &mut std::task::Context<'_>,
+    _stm: std::pin::Pin<&mut S>,
+    _cx: &mut std::task::Context<'_>,
 ) -> std::task::Poll<std::io::Result<()>> {
     std::task::Poll::Pending
 }
 
 fn override_poll_shutdown<S: tokio::io::AsyncWrite>(
-    stm: std::pin::Pin<&mut S>,
-    cx: &mut std::task::Context<'_>,
+    _stm: std::pin::Pin<&mut S>,
+    _cx: &mut std::task::Context<'_>,
 ) -> std::task::Poll<std::io::Result<()>> {
     std::task::Poll::Pending
 }
