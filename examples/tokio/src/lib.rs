@@ -5,6 +5,7 @@
 
 mod as_ref;
 mod complex_stream;
+mod duck_type;
 mod generic_enums;
 mod generic_structs;
 mod named_structs;
@@ -24,6 +25,7 @@ use tokio_streams::TokioStreams;
 use tuple_structs::TupleStruct;
 
 use crate::complex_stream::ComplexStream;
+use crate::duck_type::DuckType;
 use crate::generic_enums::EnumGeneric;
 use crate::generic_structs::{Generic, Generic2, GenericUnrelated};
 
@@ -94,6 +96,9 @@ pub async fn run() {
         None,
     );
     test_stream("ComplexStream #2", stm).await;
+
+    let stm = DuckType::new(make_tcp_stream(address).await);
+    test_stream("DuckType", stm).await;
 
     eprintln!();
     eprintln!("All tests completed successfully!");

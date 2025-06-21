@@ -169,13 +169,13 @@ macro_rules! __derive_impl {
                     $(
                         $(
                             (($([$tuple_attr])*)
-                            ($tuple_type))
+                            (type $tuple_type))
                         )*
                     )?
                     $(
                         $(
                             (($([$struct_attr])*)
-                            ($struct_type:($struct_name)))
+                            (type $struct_type:($struct_name)))
                         )*
                     )?
                 )
@@ -194,7 +194,10 @@ macro_rules! __derive_impl {
             {
                 compile_error!(concat!("No #[", stringify!($attr), "] field found"));
             }
-            ((Self) $( (($([$fattr])*) ($ftype: ($fname))) )*)
+            ((Self) 
+                $( (($([$fattr])*) (type $ftype: ($fname))) )*
+                (($([$sattr])*) (: (this)))
+            )
         );
     };
 
@@ -209,7 +212,9 @@ macro_rules! __derive_impl {
             {
                 compile_error!(concat!("No #[", stringify!($attr), "] field found"));
             }
-            ((Self) $( (($([$fattr])*) ($ftype)) )*)
+            ((Self) 
+                $( (($([$fattr])*) (type $ftype)) )*
+            )
         );
     };
 
@@ -217,18 +222,18 @@ macro_rules! __derive_impl {
     // Note that the input here is:
     //   (case) index [attr] (type : name)
     ( (__process_derive__ $generator:ident $attr:ident $generics:tt $where:tt $type:ident $name:ident) (
-        $( ( ($case:path) $index:literal $fattr:tt ($ftype:ty $( : ($fname:ident) )?) ) )*
+        $( ( ($case:path) $index:literal $fattr:tt ( $( type $ftype:ty )? $( : ($fname:ident) )? ) ) )*
     )) => {
         const _: &str = stringify!( $type $name {
             $(
-                # $fattr ($case) => $crate::__derive_impl!(__expand__ $attr ($case) $index $ftype $(: $fname)?)
+                # $fattr ($case) => $crate::__derive_impl!(__expand__ $attr ($case) $index $($ftype)? $(: $fname)?)
             )*
         });
 
-        $crate::__derive_impl!(__generate__ $generator $attr $generics $where ($($ftype)*)
+        $crate::__derive_impl!(__generate__ $generator $attr $generics $where ($($($ftype)?)*)
             $type $name {
                 $(
-                    # $fattr ($case) => $crate::__derive_impl!(__expand__ $attr ($case) $index $ftype $(: $fname)?)
+                    # $fattr ($case) => $crate::__derive_impl!(__expand__ $attr ($case) $index $($ftype)? $(: $fname)?)
                 )*
             }
         );
@@ -457,6 +462,13 @@ macro_rules! __derive_impl {
         $block
     };
 
+    // Expand a self access pattern.
+    ( __expand__ $this:ident ($case:path) $index:literal : this) => {
+        {
+            $this
+        }
+     };
+
     // Expand a named field to an access pattern.
     ( __expand__ $this:ident ($case:path) $index:literal $ftype:ty : $fname:tt) => {
         {
@@ -531,10 +543,18 @@ macro_rules! __derive_impl {
                                 let $this = ::std::pin::Pin::new(std::ops::DerefMut::deref_mut($this.get_mut()));
                                 $crate::__derive_impl!(__foreach_inner__ # $attr $fn)
                             })
-                            ({
-                                let $this = unsafe { ::std::pin::Pin::new_unchecked($access) };
-                                $crate::__derive_impl!(__foreach_inner__ # $attr $fn)
-                            })
+                            ($crate::__support::if_meta!(
+                                duck
+                                $attr
+                                ({
+                                    let $this = unsafe { ::std::pin::Pin::new_unchecked($access) };
+                                    $crate::__derive_impl!(__foreach_inner_duck__ # $attr $fn)
+                                })
+                                ({
+                                    let $this = unsafe { ::std::pin::Pin::new_unchecked($access) };
+                                    $crate::__derive_impl!(__foreach_inner__ # $attr $fn)
+                                })
+                            ))
                         ))
                     )
                 } )*
@@ -554,10 +574,22 @@ macro_rules! __derive_impl {
         }
     };
 
+    ( __foreach_inner_duck__  # $attr:tt ( $( :: $fn_part:ident )+ $fn_final:ident ( $arg0:expr $(, $arg:expr)* ) ) ) => {
+        // needle, haystack, default
+        {
+            $crate::__derive_impl!(__validate_macro__ # $attr);
+            $crate::__support::extract_meta!(
+                $fn_final
+                $attr
+                ( $arg0 . $fn_final ($($arg),*) )
+            ) 
+        }
+    };
+
     ( __validate_macro__ #[read]) => {
     };
 
-    ( __validate_macro__ #[read($( as_ref )? $(,)? $( deref )? $(,)? $( poll_read=$poll_read:ident )? )]) => {
+    ( __validate_macro__ #[read($( as_ref )? $(,)? $( deref )? $(,)? $( duck )? $(,)? $( poll_read=$poll_read:ident )? )]) => {
     };
 
     ( __validate_macro__ #[write]) => {
@@ -570,6 +602,7 @@ macro_rules! __derive_impl {
     ( __validate_macro_deep__ #[write(
         $( as_ref )? $(,)?
         $( deref )? $(,)?
+        $( duck )? $(,)?
         $( poll_write=$poll_write:ident )? $(,)?
         $( poll_flush=$poll_flush:ident )? $(,)?
         $( poll_shutdown=$poll_shutdown:ident )? $(,)?
