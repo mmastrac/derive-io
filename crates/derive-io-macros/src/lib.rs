@@ -142,7 +142,7 @@ fn generate(macro_crate: &str, macro_type: &str, item: TokenStream) -> TokenStre
     let mut in_where_clause = false;
     let mut in_generic_default = false;
     let mut in_generic_const = false;
-    while let Some(token) = iterator.next() {
+    for token in iterator.by_ref() {
         match token {
             TokenTree::Punct(p) if !in_where_clause && p.as_char() == '<' => {
                 in_generics = true;
@@ -266,7 +266,7 @@ fn generate(macro_crate: &str, macro_type: &str, item: TokenStream) -> TokenStre
         TokenTree::Punct(Punct::new(':', Spacing::Joint)),
         TokenTree::Punct(Punct::new(':', Spacing::Alone)),
         TokenTree::Ident(Ident::new(
-            &format!("{}_parse", macro_type),
+            &format!("{macro_type}_parse"),
             Span::call_site(),
         )),
         TokenTree::Punct(Punct::new('!', Spacing::Alone)),
@@ -280,7 +280,7 @@ fn generate(macro_crate: &str, macro_type: &str, item: TokenStream) -> TokenStre
 fn expect_any(named: &str, iterator: &mut impl Iterator<Item = TokenTree>) -> TokenTree {
     let next = iterator.next();
     let Some(token) = next else {
-        panic!("Expected {} token, got end of stream", named);
+        panic!("Expected {named} token, got end of stream");
     };
     token
 }
@@ -288,7 +288,7 @@ fn expect_any(named: &str, iterator: &mut impl Iterator<Item = TokenTree>) -> To
 fn expect_group(named: &str, iterator: &mut impl Iterator<Item = TokenTree>) -> Group {
     let next = iterator.next();
     let Some(TokenTree::Group(group)) = next else {
-        panic!("Expected {} group, got {:?}", named, next);
+        panic!("Expected {named} group, got {next:?}");
     };
     group
 }
@@ -296,7 +296,7 @@ fn expect_group(named: &str, iterator: &mut impl Iterator<Item = TokenTree>) -> 
 fn expect_ident(named: &str, iterator: &mut impl Iterator<Item = TokenTree>) -> Ident {
     let next = iterator.next();
     let Some(TokenTree::Ident(ident)) = next else {
-        panic!("Expected {} ident, got {:?}", named, next);
+        panic!("Expected {named} ident, got {next:?}");
     };
     ident
 }
@@ -310,7 +310,7 @@ fn expect_literal(named: &str, iterator: &mut impl Iterator<Item = TokenTree>) -
         }
     }
     let Some(TokenTree::Literal(literal)) = next else {
-        panic!("Expected {} literal, got {:?}", named, next);
+        panic!("Expected {named} literal, got {next:?}");
     };
     literal
 }
@@ -344,15 +344,14 @@ pub fn find_annotated(input: TokenStream) -> TokenStream {
     let expected_attr = expect_ident("expected_attr", &mut iterator);
     let on_error = expect_group("on_error", &mut iterator);
 
-    while let Some(token) = iterator.next() {
+    for token in iterator {
         let TokenTree::Group(check) = token else {
             panic!("Expected check group");
         };
         let mut iter = check.stream().into_iter();
         let attrs = expect_group("attrs", &mut iter);
         let item = expect_any("item", &mut iter);
-        let mut index = 0;
-        for attr in attrs.stream().into_iter() {
+        for (index, attr) in attrs.stream().into_iter().enumerate() {
             let attr = expect_is_meta("attr", attr);
             let first = expect_ident("first attr", &mut attr.clone().stream().into_iter());
             if first.to_string() == expected_attr.to_string() {
@@ -372,7 +371,6 @@ pub fn find_annotated(input: TokenStream) -> TokenStream {
                 ]);
                 return next;
             }
-            index += 1;
         }
     }
 
@@ -393,14 +391,14 @@ pub fn find_annotated_multi(input: TokenStream) -> TokenStream {
     let on_error = expect_group("on_error", &mut iterator);
     let mut output = TokenStream::new();
 
-    'outer: while let Some(token) = iterator.next() {
+    'outer: for token in iterator {
         let TokenTree::Group(id) = token else {
             panic!("Expected id group");
         };
         let mut iter = id.stream().into_iter();
         let id = expect_group("id", &mut iter);
         let mut index = 0;
-        while let Some(token) = iter.next() {
+        for token in iter {
             let TokenTree::Group(check) = token else {
                 panic!("Expected check group");
             };
@@ -449,8 +447,7 @@ pub fn repeat_in_parenthesis(input: TokenStream) -> TokenStream {
     let mut iterator = input.into_iter();
     let prefix = expect_group("prefix", &mut iterator);
     let count = expect_literal("count", &mut iterator);
-    let count =
-        usize::from_str_radix(&count.to_string(), 10).expect("Expected count to be a number");
+    let count: usize = str::parse(&count.to_string()).expect("Expected count to be a number");
     let repeated = expect_group("repeated", &mut iterator);
     let suffix = expect_group("suffix", &mut iterator);
     let mut repeat = TokenStream::new();
@@ -497,7 +494,7 @@ pub fn extract_meta(input: TokenStream) -> TokenStream {
         };
         // Ignore simple attributes
         let TokenTree::Punct(punct) = next else {
-            panic!("Expected = after key, got {:?}", next);
+            panic!("Expected = after key, got {next:?}");
         };
 
         if punct.as_char() == ',' {
@@ -564,8 +561,8 @@ pub fn type_has_generic(input: TokenStream) -> TokenStream {
     let if_false = expect_group("if_false", &mut iterator);
 
     fn recursive_collect_generics(generics: &mut HashSet<String>, type_tokens: TokenStream) {
-        let mut iterator = type_tokens.into_iter();
-        while let Some(token) = iterator.next() {
+        let iterator = type_tokens.into_iter();
+        for token in iterator {
             if let TokenTree::Ident(ident) = &token {
                 generics.insert(ident.to_string());
             } else if let TokenTree::Group(group) = token {
@@ -578,8 +575,8 @@ pub fn type_has_generic(input: TokenStream) -> TokenStream {
     recursive_collect_generics(&mut generics, generic.stream());
 
     fn recursive_check_generics(generics: &HashSet<String>, type_tokens: TokenStream) -> bool {
-        let mut iterator = type_tokens.into_iter();
-        while let Some(token) = iterator.next() {
+        let iterator = type_tokens.into_iter();
+        for token in iterator {
             if let TokenTree::Ident(ident) = &token {
                 if generics.contains(&ident.to_string()) {
                     return true;

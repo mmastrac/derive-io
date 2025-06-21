@@ -28,7 +28,7 @@ use crate::generic_enums::EnumGeneric;
 use crate::generic_structs::{Generic, Generic2, GenericUnrelated};
 
 pub async fn test_stream(test_name: &str, mut stream: impl AsyncRead + AsyncWrite + Unpin) {
-    eprint!("test {} ... ", test_name);
+    eprint!("test {test_name} ... ");
     let mut buf = Vec::new();
     stream.write_all(&buf).await.unwrap();
     stream.read_to_end(&mut buf).await.unwrap();
@@ -45,7 +45,7 @@ pub async fn make_tcp_stream(address: SocketAddr) -> TcpStream {
 pub async fn run() {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let address = listener.local_addr().unwrap();
-    eprintln!("Listening onaddress: {}", address);
+    eprintln!("Listening onaddress: {address}");
 
     let _handle = tokio::spawn(async move {
         loop {

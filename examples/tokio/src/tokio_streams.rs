@@ -5,8 +5,8 @@ use tokio::net::TcpStream;
 use tokio::net::UnixStream;
 
 /// [`TokioStreams`] - Tests multi-variant enums with different stream types and
-/// platform-specific variants. 
-/// 
+/// platform-specific variants.
+///
 /// Also demonstrates conditional derivation: `AsSocketDescriptor` is derived on
 /// unix only.
 #[cfg_attr(unix, derive(AsSocketDescriptor))]
