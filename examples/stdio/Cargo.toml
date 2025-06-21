@@ -7,7 +7,7 @@ default-run = "std-example"
 
 [dependencies]
 derive-io = { workspace = true, features = ["tokio"] }
-derive-io-macros = { workspace = true }
+derive-io-macros.workspace = true
 derive_more = { version = "2", features = ["full"] }
 
 [[bin]]

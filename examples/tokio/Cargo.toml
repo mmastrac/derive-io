@@ -8,7 +8,7 @@ default-run = "tokio-example"
 [dependencies]
 tokio = { version = "1.45", features = ["full"] }
 derive-io = { workspace = true, features = ["tokio"] }
-derive-io-macros = { workspace = true }
+derive-io-macros.workspace = true
 derive_more = { version = "2", features = ["full"] }
 
 [[bin]]
