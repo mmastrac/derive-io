@@ -1,5 +1,10 @@
 # derive-io
 
+[![Crates.io](https://img.shields.io/crates/v/derive-io.svg)](https://crates.io/crates/derive-io)
+[![Documentation](https://docs.rs/derive-io/badge.svg)](https://docs.rs/derive-io)
+[![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)](README.md)
+[![Build Status](https://github.com/mmastrac/derive-io/workflows/CI/badge.svg)](https://github.com/mmastrac/derive-io/actions)
+
 A Rust crate that provides derive macros for implementing sync and async I/O traits on structs and enums (including Tokio, stdlib I/O, and more).
 
 ## Supported traits

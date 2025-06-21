@@ -4,8 +4,13 @@ use tokio::net::TcpStream;
 #[cfg(unix)]
 use tokio::net::UnixStream;
 
-/// [`TokioStreams`] - Tests multi-variant enums with different stream types and platform-specific variants.
-#[derive(AsyncRead, AsyncWrite, AsSocketDescriptor)]
+/// [`TokioStreams`] - Tests multi-variant enums with different stream types and
+/// platform-specific variants. 
+/// 
+/// Also demonstrates conditional derivation: `AsSocketDescriptor` is derived on
+/// unix only.
+#[cfg_attr(unix, derive(AsSocketDescriptor))]
+#[derive(AsyncRead, AsyncWrite)]
 #[allow(unused)]
 pub enum TokioStreams {
     Tcp(
@@ -25,7 +30,6 @@ pub enum TokioStreams {
     Windows(
         #[read]
         #[write]
-        #[descriptor]
         tokio::net::windows::named_pipe::NamedPipeClient,
     ),
     Split {

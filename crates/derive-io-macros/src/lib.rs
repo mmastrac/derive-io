@@ -15,7 +15,7 @@ use proc_macro::*;
 /// - `#[read(as_ref)]`: Delegates the field to the inner type using `AsRef`/`AsMut`.
 /// - `#[read(deref)]`: Delegates the field to the inner type using `Deref`/`DerefMut`.
 /// - `#[read(<function>=<override>)]`: Overrides the default `<function>` method with the given override function.
-#[proc_macro_derive(Read, attributes(read))]
+#[proc_macro_derive(Read, attributes(read, write, descriptor))]
 pub fn derive_io_read(input: TokenStream) -> TokenStream {
     generate("derive_io", "derive_io_read", input)
 }
@@ -40,7 +40,7 @@ pub fn derive_io_read(input: TokenStream) -> TokenStream {
 ///   `Deref`/`DerefMut`.
 /// - `#[read(<function>=<override>)]`: Overrides the default `<function>`
 ///   method with the given override function.
-#[proc_macro_derive(BufRead, attributes(read))]
+#[proc_macro_derive(BufRead, attributes(read, write, descriptor))]
 pub fn derive_io_bufread(input: TokenStream) -> TokenStream {
     generate("derive_io", "derive_io_bufread", input)
 }
@@ -55,7 +55,7 @@ pub fn derive_io_bufread(input: TokenStream) -> TokenStream {
 /// - `#[write(as_ref)]`: Delegates the field to the inner type using `AsRef`/`AsMut`.
 /// - `#[write(deref)]`: Delegates the field to the inner type using `AsRef`/`AsMut`.
 /// - `#[write(<function>=<override>)]`: Overrides the default `<function>` method with the given override function.
-#[proc_macro_derive(Write, attributes(write))]
+#[proc_macro_derive(Write, attributes(read, write, descriptor))]
 pub fn derive_io_write(input: TokenStream) -> TokenStream {
     generate("derive_io", "derive_io_write", input)
 }
@@ -70,7 +70,7 @@ pub fn derive_io_write(input: TokenStream) -> TokenStream {
 /// - `#[read(as_ref)]`: Delegates the field to the inner type using `AsRef`/`AsMut`.
 /// - `#[read(deref)]`: Delegates the field to the inner type using `Deref`/`DerefMut`.
 /// - `#[read(<function>=<override>)]`: Overrides the default `<function>` method with the given override function.
-#[proc_macro_derive(AsyncRead, attributes(read))]
+#[proc_macro_derive(AsyncRead, attributes(read, write, descriptor))]
 pub fn derive_io_async_read(input: TokenStream) -> TokenStream {
     generate("derive_io", "derive_io_async_read", input)
 }
@@ -85,7 +85,7 @@ pub fn derive_io_async_read(input: TokenStream) -> TokenStream {
 /// - `#[write(as_ref)]`: Delegates the field to the inner type using `AsRef`/`AsMut`.
 /// - `#[write(deref)]`: Delegates the field to the inner type using `Deref`/`DerefMut`.
 /// - `#[write(<function>=<override>)]`: Overrides the default `<function>` method with the given override function.
-#[proc_macro_derive(AsyncWrite, attributes(write))]
+#[proc_macro_derive(AsyncWrite, attributes(read, write, descriptor))]
 pub fn derive_io_async_write(input: TokenStream) -> TokenStream {
     generate("derive_io", "derive_io_async_write", input)
 }
@@ -100,7 +100,7 @@ pub fn derive_io_async_write(input: TokenStream) -> TokenStream {
 /// - `#[descriptor(as_ref)]`: Delegates the field to the inner type using `AsRef`/`AsMut`.
 /// - `#[descriptor(deref)]`: Delegates the field to the inner type using `Deref`/`DerefMut`.
 /// - `#[descriptor(<function>=<override>)]`: Overrides the default `<function>` method with the given override function.
-#[proc_macro_derive(AsFileDescriptor, attributes(descriptor))]
+#[proc_macro_derive(AsFileDescriptor, attributes(read, write, descriptor))]
 pub fn derive_io_as_file_descriptor(input: TokenStream) -> TokenStream {
     generate("derive_io", "derive_io_as_file_descriptor", input)
 }
@@ -115,7 +115,7 @@ pub fn derive_io_as_file_descriptor(input: TokenStream) -> TokenStream {
 /// - `#[descriptor(as_ref)]`: Delegates the field to the inner type using `AsRef`/`AsMut`.
 /// - `#[descriptor(deref)]`: Delegates the field to the inner type using `Deref`/`DerefMut`.
 /// - `#[descriptor(<function>=<override>)]`: Overrides the default `<function>` method with the given override function.
-#[proc_macro_derive(AsSocketDescriptor, attributes(descriptor))]
+#[proc_macro_derive(AsSocketDescriptor, attributes(read, write, descriptor))]
 pub fn derive_io_as_socket_descriptor(input: TokenStream) -> TokenStream {
     generate("derive_io", "derive_io_as_socket_descriptor", input)
 }
