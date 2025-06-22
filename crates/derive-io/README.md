@@ -9,11 +9,11 @@ A Rust crate that provides derive macros for implementing sync and async I/O tra
 
 ## Supported traits
 
-- `#[derive(Read)]`: `std::io::Read`
-- `#[derive(BufRead)]`: `std:io::BufRead`
-- `#[derive(Write)]`: `std::io::Write`
-- `#[derive(AsyncRead)]`: `tokio::io::AsyncRead`
-- `#[derive(AsyncWrite)]`: `tokio::io::AsyncWrite`
+- `#[derive(Read)]`: [`std::io::Read`]
+- `#[derive(BufRead)]`: [`std:io::BufRead`]
+- `#[derive(Write)]`: [`std::io::Write`]
+- `#[derive(AsyncRead)]`: [`tokio::io::AsyncRead`]
+- `#[derive(AsyncWrite)]`: [`tokio::io::AsyncWrite`]
 - `#[derive(AsFileDescriptor)]`:
     - `std::os::fd::{AsFd, AsRawFd}`
     - `std::os::windows::io::{AsHandle, AsRawHandle}`
@@ -26,12 +26,108 @@ A Rust crate that provides derive macros for implementing sync and async I/O tra
 - Derive most common I/O traits for structs and enums
 - Support for both named and tuple structs
 - Support for enums with multiple variants
-- Support for split read/write streams
+- Support for split read/write streams (ie: two fields provide the read/write halves)
 - Support for generic types
+- Support for duck typing (ie: implementing traits using a method with a "similar" interface)
 - Individual methods can be overridden with custom implementations
 - Support for `as_ref` or `deref` attribute on fields to delegate to the inner type
   - Note: for traits requiring a pinned-self (ie: async read/write), the holder
-    type must be `Unpin`!
+    type and the outer type must both be `Unpin`!
+- Pin safety: internal pin projection never allows a `&mut` to escape, thus
+  upholding any `Pin` guarantees.
+
+## `as_ref`/`deref` delegation
+
+Most I/O traits are implemented correctly for `Box<dyn (trait)>` (that is: they
+are implemented for `Box<T> where T: ?Sized`). However, some traits have
+accidental or intentional additional `Sized` requirements which prevent
+automatic delegation from working. Generally this is only required for
+`AsFileDescriptor` and `AsSocketDescriptor`, as most other traits are
+implemented for themselves on `Box<T> where T: Trait + ?Sized`.
+
+To uphold `Pin` safety guarantees, both the inner and outer types must be
+`Unpin`.
+
+The `as_ref` attribute can be used to delegate to the inner type's unwrapped
+type `as_ref`/`as_mut` implementation. The `deref` attribute can be used to
+delegate to the inner type's pointee via `Deref`/`DerefMut`.
+
+```rust
+use derive_io::{AsyncRead, AsyncWrite, AsFileDescriptor};
+
+#[cfg(unix)]
+trait MyStream: tokio::io::AsyncRead + tokio::io::AsyncWrite 
+    + std::os::fd::AsFd + std::os::fd::AsRawFd + Unpin {}
+#[cfg(windows)]
+trait MyStream: tokio::io::AsyncRead + tokio::io::AsyncWrite 
+    + std::os::windows::io::AsHandle + std::os::windows::io::AsRawHandle + Unpin {}
+
+#[derive(AsyncRead, AsyncWrite, AsFileDescriptor)]
+pub struct DelegateAsRef {
+    #[read]
+    #[write]
+    // This won't work with #[descriptor] because `AsRawFd` is not implemented for
+    // `Box<dyn AsRawFd>`.
+    #[descriptor(as_ref)]
+    stream: Box<dyn MyStream>,
+}
+
+#[derive(AsyncRead, AsyncWrite, AsFileDescriptor)]
+pub struct DelegateDeref {
+    #[read]
+    #[write]
+    // This won't work with #[descriptor] because `AsRawFd` is not implemented for
+    // `Box<dyn AsRawFd>`. This won't work with #[descriptor(as_ref)] because
+    // `as_ref` and `as_mut` on a `Pin` gives you a `Box`.
+    #[descriptor(deref)]
+    stream: std::pin::Pin<Box<dyn MyStream>>,
+}
+```
+
+## Overrides
+
+`#[read(<function>=<override>)]` and `#[write(<function>=<override>)]` may be
+specified to redirect a method to a custom implementation.
+
+## `duck` delegation
+
+`duck` delegation uses non-trait `impl` methods defined on a type to implement
+the trait (i.e. "duck typing"). This is useful for when you want to implement a
+trait for a type that doesn't implement the trait directly, but has methods that
+are similar to the trait
+
+`#[read(duck)]` and `#[write(duck)]` may be specified on the outer type or an
+inner field.
+
+When using `duck` delegation, specify the methods to delegate to using the
+`#[duck(...)]` attribute:
+
+```rust
+use derive_io::{AsyncRead, AsyncWrite};
+use std::task::{Context, Poll};
+
+#[derive(AsyncRead, AsyncWrite)]
+#[duck(poll_read, poll_write, poll_flush, poll_shutdown, poll_write_vectored, is_write_vectored)]
+#[read(duck)]
+#[write(duck)]
+pub struct DuckType {
+    inner: tokio::net::TcpStream,
+}
+
+impl DuckType {
+    pub fn poll_read(
+        &mut self,
+        cx: &mut Context<'_>,
+        buf: &mut tokio::io::ReadBuf<'_>,
+    ) -> Poll<std::io::Result<()>> {
+        todo!()
+    }
+
+    // ... poll_write, poll_flush, poll_shutdown, poll_write_vectored, is_write_vectored, etc
+}
+```
+
+# Examples
 
 ## Tokio
 

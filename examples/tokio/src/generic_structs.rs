@@ -4,7 +4,7 @@ use tokio::net::TcpStream;
 
 /// [`Generic`] - Tests generic structs with inline trait bounds on stream parameters.
 #[derive(AsyncRead, AsyncWrite)]
-pub struct Generic<S: tokio::io::AsyncRead + tokio::io::AsyncWrite> {
+pub struct Generic<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin> {
     #[read]
     #[write]
     stream: S,
@@ -12,7 +12,7 @@ pub struct Generic<S: tokio::io::AsyncRead + tokio::io::AsyncWrite> {
 
 impl<S> Generic<S>
 where
-    S: tokio::io::AsyncRead + tokio::io::AsyncWrite,
+    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
 {
     pub fn new(stream: S) -> Self {
         Self { stream }
@@ -23,7 +23,7 @@ where
 #[derive(AsyncRead, AsyncWrite)]
 pub struct Generic2<S>
 where
-    S: tokio::io::AsyncRead + tokio::io::AsyncWrite,
+    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
 {
     #[read]
     #[write]
@@ -32,7 +32,7 @@ where
 
 impl<S> Generic2<S>
 where
-    S: tokio::io::AsyncRead + tokio::io::AsyncWrite,
+    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
 {
     pub fn new(stream: S) -> Self {
         Self { stream }
@@ -49,7 +49,7 @@ pub struct GenericUnrelated<T, S> {
     t: T,
 }
 
-impl<T, S> GenericUnrelated<T, S> {
+impl<T, S: Unpin> GenericUnrelated<T, S> {
     pub fn new(stream: S, t: T) -> Self {
         Self { stream, t }
     }

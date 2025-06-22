@@ -194,7 +194,7 @@ macro_rules! __derive_impl {
             {
                 compile_error!(concat!("No #[", stringify!($attr), "] field found"));
             }
-            ((Self) 
+            ((Self)
                 $( (($([$fattr])*) (type $ftype: ($fname))) )*
                 (($([$sattr])*) (: (this)))
             )
@@ -212,7 +212,7 @@ macro_rules! __derive_impl {
             {
                 compile_error!(concat!("No #[", stringify!($attr), "] field found"));
             }
-            ((Self) 
+            ((Self)
                 $( (($([$fattr])*) (type $ftype)) )*
             )
         );
@@ -244,7 +244,7 @@ macro_rules! __derive_impl {
         $crate::__derive_impl!(__impl__ ::std::io::Read : $name $generics $where $ftypes #[read] {
             fn read(&mut self, buf: &mut [u8]) -> ::std::io::Result<usize> {
                 let $this = self;
-                $crate::__derive_impl!(__foreach__ $this (::std::io::Read read($this, buf)) $struct)
+                $crate::__derive_impl!(__foreach__ mut $this (::std::io::Read read($this, buf)) $struct)
             }
         });
     };
@@ -254,45 +254,45 @@ macro_rules! __derive_impl {
         $crate::__derive_impl!(__impl__ ::std::io::BufRead : $name $generics $where $ftypes #[read] {
             fn fill_buf(&mut self) -> ::std::io::Result<&[u8]> {
                 let $this = self;
-                $crate::__derive_impl!(__foreach__ $this (::std::io::BufRead fill_buf($this)) $struct)
+                $crate::__derive_impl!(__foreach__ mut $this (::std::io::BufRead fill_buf($this)) $struct)
             }
 
             fn consume(&mut self, amt: usize) {
                 let $this = self;
-                $crate::__derive_impl!(__foreach__ $this (::std::io::BufRead consume($this, amt)) $struct)
+                $crate::__derive_impl!(__foreach__ mut $this (::std::io::BufRead consume($this, amt)) $struct)
             }
 
             // Not yet stable!
             // fn has_data_left(&mut self) -> ::std::io::Result<bool> {
             //     let $this = self;
-            //     $crate::__derive_impl!(__foreach__ $this (::std::io::BufRead has_data_left($this)) $struct)
+            //     $crate::__derive_impl!(__foreach__ mut $this (::std::io::BufRead has_data_left($this)) $struct)
             // }
 
             fn read_until(&mut self, byte: u8, buf: &mut Vec<u8>) -> ::std::io::Result<usize> {
                 let $this = self;
-                $crate::__derive_impl!(__foreach__ $this (::std::io::BufRead read_until($this, byte, buf)) $struct)
+                $crate::__derive_impl!(__foreach__ mut $this (::std::io::BufRead read_until($this, byte, buf)) $struct)
             }
 
             fn skip_until(&mut self, byte: u8) -> ::std::io::Result<usize> {
                 let $this = self;
-                $crate::__derive_impl!(__foreach__ $this (::std::io::BufRead skip_until($this, byte)) $struct)
+                $crate::__derive_impl!(__foreach__ mut $this (::std::io::BufRead skip_until($this, byte)) $struct)
             }
 
             fn read_line(&mut self, buf: &mut String) -> ::std::io::Result<usize> {
                 let $this = self;
-                $crate::__derive_impl!(__foreach__ $this (::std::io::BufRead read_line($this, buf)) $struct)
+                $crate::__derive_impl!(__foreach__ mut $this (::std::io::BufRead read_line($this, buf)) $struct)
             }
 
             // Unimplemented because we cannot construct our own `Split`
             // fn split(self, byte: u8) -> ::std::io::Split<Self> {
             //     let $this = self;
-            //     $crate::__derive_impl!(__foreach__ $this (::std::io::BufRead split($this, byte)) $struct)
+            //     $crate::__derive_impl!(__foreach__ take $this (::std::io::BufRead split($this, byte)) $struct)
             // }
 
             // Unimplemented because we cannot construct our own `Lines`
             // fn lines(self) -> ::std::io::Lines<Self> {
             //     let $this = self;
-            //     $crate::__derive_impl!(__foreach__ $this (::std::io::BufRead lines($this)) $struct)
+            //     $crate::__derive_impl!(__foreach__ take $this (::std::io::BufRead lines($this)) $struct)
             // }
         });
     };
@@ -302,11 +302,11 @@ macro_rules! __derive_impl {
         $crate::__derive_impl!(__impl__ ::std::io::Write : $name $generics $where $ftypes #[write] {
             fn write(&mut self, buf: &[u8]) -> ::std::io::Result<usize> {
                 let $this = self;
-                $crate::__derive_impl!(__foreach__ $this (::std::io::Write write($this, buf)) $struct)
+                $crate::__derive_impl!(__foreach__ mut $this (::std::io::Write write($this, buf)) $struct)
             }
             fn flush(&mut self) -> ::std::io::Result<()> {
                 let $this = self;
-                $crate::__derive_impl!(__foreach__ $this (::std::io::Write flush($this)) $struct)
+                $crate::__derive_impl!(__foreach__ mut $this (::std::io::Write flush($this)) $struct)
             }
         });
     };
@@ -321,7 +321,7 @@ macro_rules! __derive_impl {
                 buf: &mut ::tokio::io::ReadBuf<'_>,
             ) -> ::std::task::Poll<::std::io::Result<()>> {
                 let $this = self;
-                $crate::__derive_impl!(__foreach_pin__ $this (::tokio::io::AsyncRead poll_read($this, cx, buf)) $struct)
+                $crate::__derive_impl!(__foreach_pin__ mut $this (::tokio::io::AsyncRead poll_read($this, cx, buf)) $struct)
             }
         });
     };
@@ -336,7 +336,7 @@ macro_rules! __derive_impl {
                 buf: &[u8],
             ) -> ::std::task::Poll<::std::io::Result<usize>> {
                 let $this = self;
-                $crate::__derive_impl!(__foreach_pin__ $this (::tokio::io::AsyncWrite poll_write($this, cx, buf)) $struct)
+                $crate::__derive_impl!(__foreach_pin__ mut $this (::tokio::io::AsyncWrite poll_write($this, cx, buf)) $struct)
             }
 
             #[inline]
@@ -345,7 +345,7 @@ macro_rules! __derive_impl {
                 cx: &mut ::std::task::Context<'_>,
             ) -> ::std::task::Poll<::std::io::Result<()>> {
                 let $this = self;
-                $crate::__derive_impl!(__foreach_pin__ $this (::tokio::io::AsyncWrite poll_flush($this, cx)) $struct)
+                $crate::__derive_impl!(__foreach_pin__ mut$this (::tokio::io::AsyncWrite poll_flush($this, cx)) $struct)
             }
 
             #[inline]
@@ -354,13 +354,13 @@ macro_rules! __derive_impl {
                 cx: &mut ::std::task::Context<'_>,
             ) -> ::std::task::Poll<::std::io::Result<()>> {
                 let $this = self;
-                $crate::__derive_impl!(__foreach_pin__ $this (::tokio::io::AsyncWrite poll_shutdown($this, cx)) $struct)
+                $crate::__derive_impl!(__foreach_pin__ mut $this (::tokio::io::AsyncWrite poll_shutdown($this, cx)) $struct)
             }
 
             #[inline]
             fn is_write_vectored(&self) -> bool {
                 let $this = self;
-                $crate::__derive_impl!(__foreach__ $this (::tokio::io::AsyncWrite is_write_vectored($this)) $struct)
+                $crate::__derive_impl!(__foreach__ ref $this (::tokio::io::AsyncWrite is_write_vectored($this)) $struct)
             }
 
             #[inline]
@@ -370,7 +370,7 @@ macro_rules! __derive_impl {
                 bufs: &[::std::io::IoSlice<'_>],
             ) -> ::std::task::Poll<::std::io::Result<usize>> {
                 let $this = self;
-                $crate::__derive_impl!(__foreach_pin__ $this (::tokio::io::AsyncWrite poll_write_vectored($this, cx, bufs)) $struct)
+                $crate::__derive_impl!(__foreach_pin__ mut $this (::tokio::io::AsyncWrite poll_write_vectored($this, cx, bufs)) $struct)
             }
         });
     };
@@ -381,28 +381,28 @@ macro_rules! __derive_impl {
         $crate::__derive_impl!(__impl__ ::std::os::fd::AsFd : $name $generics $where $ftypes #[read] {
             fn as_fd(&self) -> ::std::os::fd::BorrowedFd<'_> {
                 let $this = self;
-                $crate::__derive_impl!(__foreach__ $this (::std::os::fd::AsFd as_fd($this)) $struct)
+                $crate::__derive_impl!(__foreach__ ref $this (::std::os::fd::AsFd as_fd($this)) $struct)
             }
         });
         #[cfg(unix)]
         $crate::__derive_impl!(__impl__ ::std::os::fd::AsRawFd : $name $generics $where $ftypes #[read] {
             fn as_raw_fd(&self) -> ::std::os::fd::RawFd {
                 let $this = self;
-                $crate::__derive_impl!(__foreach__ $this (::std::os::fd::AsRawFd as_raw_fd($this)) $struct)
+                $crate::__derive_impl!(__foreach__ ref $this (::std::os::fd::AsRawFd as_raw_fd($this)) $struct)
             }
         });
         #[cfg(windows)]
         $crate::__derive_impl!(__impl__ ::std::os::windows::io::AsRawHandle : $name $generics $where $ftypes #[read] {
             fn as_raw_handle(&self) -> ::std::os::windows::io::RawHandle {
                 let $this = self;
-                $crate::__derive_impl!(__foreach__ $this (::std::os::windows::io::AsRawHandle as_raw_handle($this)) $struct)
+                $crate::__derive_impl!(__foreach__ ref $this (::std::os::windows::io::AsRawHandle as_raw_handle($this)) $struct)
             }
         });
         #[cfg(windows)]
         $crate::__derive_impl!(__impl__ ::std::os::windows::io::AsHandle : $name $generics $where $ftypes #[read] {
             fn as_handle(&self) -> ::std::os::windows::io::BorrowedHandle<'_> {
                 let $this = self;
-                $crate::__derive_impl!(__foreach__ $this (::std::os::windows::io::AsHandle as_handle($this)) $struct)
+                $crate::__derive_impl!(__foreach__ ref $this (::std::os::windows::io::AsHandle as_handle($this)) $struct)
             }
         });
     };
@@ -413,28 +413,28 @@ macro_rules! __derive_impl {
         $crate::__derive_impl!(__impl__ ::std::os::fd::AsFd : $name $generics $where $ftypes #[read] {
             fn as_fd(&self) -> ::std::os::fd::BorrowedFd<'_> {
                 let $this = self;
-                $crate::__derive_impl!(__foreach__ $this (::std::os::fd::AsFd as_fd($this)) $struct)
+                $crate::__derive_impl!(__foreach__ ref $this (::std::os::fd::AsFd as_fd($this)) $struct)
             }
         });
         #[cfg(unix)]
         $crate::__derive_impl!(__impl__ ::std::os::fd::AsRawFd : $name $generics $where $ftypes #[read] {
             fn as_raw_fd(&self) -> ::std::os::fd::RawFd {
                 let $this = self;
-                $crate::__derive_impl!(__foreach__ $this (::std::os::fd::AsRawFd as_raw_fd($this)) $struct)
+                $crate::__derive_impl!(__foreach__ ref $this (::std::os::fd::AsRawFd as_raw_fd($this)) $struct)
             }
         });
         #[cfg(windows)]
         $crate::__derive_impl!(__impl__ ::std::os::windows::io::AsSocket : $name $generics $where $ftypes #[read] {
             fn as_socket(&self) -> ::std::os::windows::io::BorrowedSocket<'_> {
                 let $this = self;
-                $crate::__derive_impl!(__foreach__ $this (::std::os::windows::io::AsSocket as_socket($this)) $struct)
+                $crate::__derive_impl!(__foreach__ ref $this (::std::os::windows::io::AsSocket as_socket($this)) $struct)
             }
         });
         #[cfg(windows)]
         $crate::__derive_impl!(__impl__ ::std::os::windows::io::AsRawSocket : $name $generics $where $ftypes #[read] {
             fn as_raw_socket(&self) -> ::std::os::windows::io::RawSocket {
                 let $this = self;
-                $crate::__derive_impl!(__foreach__ $this (::std::os::windows::io::AsRawSocket as_raw_socket($this)) $struct)
+                $crate::__derive_impl!(__foreach__ ref $this (::std::os::windows::io::AsRawSocket as_raw_socket($this)) $struct)
             }
         });
     };
@@ -489,70 +489,37 @@ macro_rules! __derive_impl {
         }
     };
 
-    ( __foreach__ $this:ident $fn:tt {$(
+    ( __foreach__ $refmut:tt $this:ident $fn:tt {$(
         # $attr:tt ($case:path) => $access:expr
     )*}) =>{
         {
             match $this {
                 $( $case {..} => {
+                    $crate::__derive_impl!(__validate_macro__ # $attr);
                     $crate::__support::if_meta!(
                         as_ref
                         $attr
                         ({
                             let $this = $access.as_ref();
-                            $crate::__derive_impl!(__foreach_inner__ # $attr $fn)
+                            $crate::__derive_impl!(__foreach_inner__ $refmut # $attr $fn)
                         })
                         ($crate::__support::if_meta!(
                             deref
                             $attr
                             ({
                                 let $this = std::ops::Deref::deref($access);
-                                $crate::__derive_impl!(__foreach_inner__ # $attr $fn)
-                            })
-                            ({
-                                let $this = $access;
-                                $crate::__derive_impl!(__foreach_inner__ # $attr $fn)
-                            })
-                        ))
-                    )
-                } )*
-            }
-        }
-    };
-
-    ( __foreach_pin__ $this:ident $fn:tt {$(
-        # $attr:tt ($case:path) => $access:expr
-    )*}) =>{
-        {
-            let mut $this = unsafe { $this.get_unchecked_mut() };
-            match $this {
-                $( $case {..} => {
-                    $crate::__support::if_meta!(
-                        as_ref
-                        $attr
-                        ({
-                            let $this = unsafe { ::std::pin::Pin::new_unchecked($access) };
-                            let $this = ::std::pin::Pin::new($this.get_mut().as_mut());
-                            $crate::__derive_impl!(__foreach_inner__ # $attr $fn)
-                        })
-                        ($crate::__support::if_meta!(
-                            deref
-                            $attr
-                            ({
-                                let $this = unsafe { ::std::pin::Pin::new_unchecked($access) };
-                                let $this = ::std::pin::Pin::new(std::ops::DerefMut::deref_mut($this.get_mut()));
-                                $crate::__derive_impl!(__foreach_inner__ # $attr $fn)
+                                $crate::__derive_impl!(__foreach_inner__ $refmut # $attr $fn)
                             })
                             ($crate::__support::if_meta!(
                                 duck
                                 $attr
                                 ({
-                                    let $this = unsafe { ::std::pin::Pin::new_unchecked($access) };
-                                    $crate::__derive_impl!(__foreach_inner_duck__ # $attr $fn)
+                                    let $this = $access;
+                                    $crate::__derive_impl!(__foreach_inner_duck__ unpin $refmut # $attr $fn)
                                 })
                                 ({
-                                    let $this = unsafe { ::std::pin::Pin::new_unchecked($access) };
-                                    $crate::__derive_impl!(__foreach_inner__ # $attr $fn)
+                                    let $this = $access;
+                                    $crate::__derive_impl!(__foreach_inner__ $refmut # $attr $fn)
                                 })
                             ))
                         ))
@@ -562,10 +529,63 @@ macro_rules! __derive_impl {
         }
     };
 
-    ( __foreach_inner__  # $attr:tt ( $( :: $fn_part:ident )+ $fn_final:ident ( $($arg:expr),* ) ) ) => {
+    ( __foreach_pin__ $refmut:tt $this:ident $fn:tt {$(
+        # $attr:tt ($case:path) => $access:expr
+    )*}) =>{
+        {
+            match &*$this {
+                $( $case {..} => {
+                    $crate::__derive_impl!(__validate_macro__ # $attr);
+                    $crate::__support::if_meta!(
+                        as_ref
+                        $attr
+                        ({
+                            // NOTE: as_ref requires Unpin for safety
+                            let mut $this = $this.get_mut();
+                            let mut $this = ::std::pin::Pin::new($access);
+                            let $this = ::std::pin::Pin::new($this.get_mut().as_mut());
+                            $crate::__derive_impl!(__foreach_inner__ $refmut # $attr $fn)
+                        })
+                        ($crate::__support::if_meta!(
+                            deref
+                            $attr
+                            ({
+                                // NOTE: as_mut requires Unpin for safety
+                                let mut $this = $this.get_mut();
+                                let mut $this = ::std::pin::Pin::new($access);
+                                let $this = ::std::pin::Pin::new(std::ops::DerefMut::deref_mut($this));
+                                $crate::__derive_impl!(__foreach_inner__ $refmut # $attr $fn)
+                            })
+                            ($crate::__support::if_meta!(
+                                duck
+                                $attr
+                                ({
+                                    // NOTE: duck typing requires Unpin for safety
+                                    let mut $this = $this.get_mut();
+                                    let mut $this = ::std::pin::Pin::new($access);
+                                    $crate::__derive_impl!(__foreach_inner_duck__ pin $refmut # $attr $fn)
+                                })
+                                ({
+                                    // SAFETY: we are mapping this pin to a
+                                    // nested field which must be `Unpin`.
+                                    // Because we are delegating to methods that
+                                    // never uses mutable references that aren't
+                                    // pinned, this is safe.
+                                    let mut $this = (unsafe { $this.get_unchecked_mut() });
+                                    let mut $this = (unsafe { ::std::pin::Pin::new_unchecked($access) });
+                                    $crate::__derive_impl!(__foreach_inner__ $refmut # $attr $fn)
+                                })
+                            ))
+                        ))
+                    )
+                } )*
+            }
+        }
+    };
+
+    ( __foreach_inner__ $refmut:tt # $attr:tt ( $( :: $fn_part:ident )+ $fn_final:ident ( $($arg:expr),* ) ) ) => {
         // needle, haystack, default
         {
-            $crate::__derive_impl!(__validate_macro__ # $attr);
             $crate::__support::extract_meta!(
                 $fn_final
                 $attr
@@ -574,15 +594,64 @@ macro_rules! __derive_impl {
         }
     };
 
-    ( __foreach_inner_duck__  # $attr:tt ( $( :: $fn_part:ident )+ $fn_final:ident ( $arg0:expr $(, $arg:expr)* ) ) ) => {
+    ( __foreach_inner_duck__ unpin ref # $attr:tt ( $( :: $fn_part:ident )+ $fn_final:ident ( $arg0:expr $(, $arg:expr)* ) ) ) => {
         // needle, haystack, default
         {
-            $crate::__derive_impl!(__validate_macro__ # $attr);
             $crate::__support::extract_meta!(
                 $fn_final
                 $attr
-                ( $arg0 . $fn_final ($($arg),*) )
-            ) 
+                ( Self :: $fn_final( ($arg0) $(, $arg)*) )
+            )
+        }
+    };
+
+    ( __foreach_inner_duck__ unpin mut # $attr:tt ( $( :: $fn_part:ident )+ $fn_final:ident ( $arg0:expr $(, $arg:expr)* ) ) ) => {
+        // needle, haystack, default
+        {
+            $crate::__support::extract_meta!(
+                $fn_final
+                $attr
+                ( Self :: $fn_final( ($arg0) $(, $arg)*) )
+            )
+        }
+    };
+
+    ( __foreach_inner_duck__ $pin:tt ref # $attr:tt ( $( :: $fn_part:ident )+ $fn_final:ident ( $arg0:expr $(, $arg:expr)* ) ) ) => {
+        {
+            // I don't think anyone uses these...
+            unimplemented!("pin ref duck type is not yet supported");
+        }
+    };
+
+    ( __foreach_inner_duck__ $pin:tt mut # $attr:tt ( $( :: $fn_part:ident )+ $fn_final:ident ( $arg0:expr $(, $arg:expr)* ) ) ) => {
+        {
+            // Choose the correct pointer for the receiver via trait.
+            #[allow(non_camel_case_types)]
+            trait __Derive_Io_Coerce<T, U> {
+                fn __derive_io_coerce(this: T) -> U;
+            }
+            impl<'a, T> __Derive_Io_Coerce<::std::pin::Pin<&'a mut T>, &'a mut T> for ::std::pin::Pin<&'a mut T> where T: Unpin {
+                fn __derive_io_coerce(this: ::std::pin::Pin<&'a mut T>) -> &'a mut T {
+                    this.get_mut()
+                }
+            }
+            impl<'a, T> __Derive_Io_Coerce<::std::pin::Pin<&'a mut T>, ::std::pin::Pin<&'a mut T>> for ::std::pin::Pin<&'a mut T> {
+                fn __derive_io_coerce(this: ::std::pin::Pin<&'a mut T>) -> ::std::pin::Pin<&'a mut T> {
+                    this
+                }
+            }
+
+            let self_type = $arg0;
+            let self_type = <::std::pin::Pin<&mut Self> as __Derive_Io_Coerce<_, _>>::__derive_io_coerce(self_type);
+
+            // needle, haystack, default
+            let callable = $crate::__support::extract_meta!(
+                $fn_final
+                $attr
+                (Self :: $fn_final)
+            );
+
+            callable(self_type $(, $arg)*)
         }
     };
 
