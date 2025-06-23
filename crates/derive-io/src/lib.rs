@@ -507,7 +507,7 @@ macro_rules! __derive_impl {
                             deref
                             $attr
                             ({
-                                let $this = std::ops::Deref::deref($access);
+                                let $this = ::std::ops::Deref::deref($access);
                                 $crate::__derive_impl!(__foreach_inner__ $refmut # $attr $fn)
                             })
                             ($crate::__support::if_meta!(
@@ -552,8 +552,8 @@ macro_rules! __derive_impl {
                             ({
                                 // NOTE: as_mut requires Unpin for safety
                                 let mut $this = $this.get_mut();
-                                let mut $this = ::std::pin::Pin::new($access);
-                                let $this = ::std::pin::Pin::new(std::ops::DerefMut::deref_mut($this));
+                                let mut $this = ::std::ops::DerefMut::deref_mut($access);
+                                let $this = ::std::pin::Pin::new($this);
                                 $crate::__derive_impl!(__foreach_inner__ $refmut # $attr $fn)
                             })
                             ($crate::__support::if_meta!(

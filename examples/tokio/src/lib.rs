@@ -5,6 +5,7 @@
 
 mod as_ref;
 mod complex_stream;
+mod deref;
 mod duck_type;
 mod generic_enums;
 mod generic_structs;
@@ -25,6 +26,7 @@ use tokio_streams::TokioStreams;
 use tuple_structs::TupleStruct;
 
 use crate::complex_stream::ComplexStream;
+use crate::deref::DerefStruct;
 use crate::duck_type::DuckType;
 use crate::generic_enums::EnumGeneric;
 use crate::generic_structs::{Generic, Generic2, GenericUnrelated};
@@ -99,6 +101,9 @@ pub async fn run() {
 
     let stm = DuckType::new(make_tcp_stream(address).await);
     test_stream("DuckType", stm).await;
+
+    let stm = DerefStruct::new(make_tcp_stream(address).await);
+    test_stream("DerefStruct", stm).await;
 
     eprintln!();
     eprintln!("All tests completed successfully!");

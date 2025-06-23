@@ -37,7 +37,7 @@ impl DuckType {
         Self { inner }
     }
 
-    pub fn poll_read(
+    fn poll_read(
         &mut self,
         cx: &mut Context<'_>,
         buf: &mut ReadBuf<'_>,
@@ -45,22 +45,19 @@ impl DuckType {
         Pin::new(&mut self.inner).poll_read(cx, buf)
     }
 
-    pub fn poll_write(&mut self, cx: &mut Context<'_>, buf: &[u8]) -> Poll<std::io::Result<usize>> {
+    fn poll_write(&mut self, cx: &mut Context<'_>, buf: &[u8]) -> Poll<std::io::Result<usize>> {
         Pin::new(&mut self.inner).poll_write(cx, buf)
     }
 
-    pub fn poll_flush(&mut self, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
+    fn poll_flush(&mut self, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
         Pin::new(&mut self.inner).poll_flush(cx)
     }
 
-    pub fn poll_shutdown(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<std::io::Result<()>> {
+    fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
         Pin::new(&mut self.inner).poll_shutdown(cx)
     }
 
-    pub fn poll_write_vectored(
+    fn poll_write_vectored(
         &mut self,
         cx: &mut Context<'_>,
         bufs: &[IoSlice<'_>],
@@ -68,7 +65,7 @@ impl DuckType {
         Pin::new(&mut self.inner).poll_write_vectored(cx, bufs)
     }
 
-    pub fn is_write_vectored(&self) -> bool {
+    fn is_write_vectored(&self) -> bool {
         self.inner.is_write_vectored()
     }
 }
